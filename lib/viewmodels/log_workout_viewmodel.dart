@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../models/challenge.dart';
 import '../models/workout_log.dart';
 import '../services/workout_service.dart';
 
@@ -11,6 +12,7 @@ class LogWorkoutViewModel extends ChangeNotifier {
     required WorkoutService service,
     required this.userId,
     required this.groupId,
+    required this.goalType,
     required File photo,
     ImagePicker? picker,
   })  : _service = service,
@@ -24,6 +26,10 @@ class LogWorkoutViewModel extends ChangeNotifier {
   final String userId;
   final String groupId;
 
+  /// Whether the parent group is scored on workout count or total minutes.
+  /// Workout-count groups don't ask for a duration at log time.
+  final GoalType goalType;
+
   File _photo;
   int _durationMinutes = 30;
   bool _busy = false;
@@ -36,6 +42,8 @@ class LogWorkoutViewModel extends ChangeNotifier {
   String? get error => _error;
   WorkoutLog? get saved => _saved;
   bool get canSubmit => !_busy;
+
+  bool get tracksMinutes => goalType == GoalType.minutes;
 
   void cycleDuration() {
     final i = durationPresets.indexOf(_durationMinutes);
@@ -63,7 +71,7 @@ class LogWorkoutViewModel extends ChangeNotifier {
       _saved = await _service.logWorkout(
         userId: userId,
         groupId: groupId,
-        durationMinutes: _durationMinutes,
+        durationMinutes: tracksMinutes ? _durationMinutes : 0,
         workoutType: 'workout',
         photo: _photo,
       );

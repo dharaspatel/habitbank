@@ -145,6 +145,7 @@ class GroupDetailScreen extends StatelessWidget {
             service: WorkoutService(SupabaseService.client),
             userId: vm.currentUserId,
             groupId: vm.group.id,
+            goalType: vm.challenge?.goalType ?? GoalType.workouts,
             photo: File(captured.path),
             picker: picker,
           ),
@@ -157,29 +158,24 @@ class GroupDetailScreen extends StatelessWidget {
 
   void _showInviteSheet(BuildContext context, GroupViewModel vm) {
     final code = vm.group.inviteCode;
-    final url = vm.group.inviteUrl;
     showCupertinoModalPopup<void>(
       context: context,
       builder: (sheetCtx) => CupertinoActionSheet(
-        title: const Text('Invite friends'),
+        title: const Text('Invite code'),
         message: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
             children: [
-              Text(code, style: AppTheme.balanceLarge.copyWith(fontSize: 36)),
+              Text(code, style: AppTheme.balanceLarge.copyWith(fontSize: 40)),
               const SizedBox(height: 8),
-              Text(url, style: AppTheme.caption),
+              const Text(
+                'Friends type this in on the Join screen.',
+                style: AppTheme.caption,
+              ),
             ],
           ),
         ),
         actions: [
-          CupertinoActionSheetAction(
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: url));
-              if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
-            },
-            child: const Text('Copy invite link'),
-          ),
           CupertinoActionSheetAction(
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: code));

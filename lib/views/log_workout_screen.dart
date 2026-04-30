@@ -52,10 +52,11 @@ class LogWorkoutScreen extends StatelessWidget {
                     child: const Text('Retake', style: AppTheme.caption),
                   ),
                   const Spacer(),
-                  _DurationPill(
-                    value: vm.durationMinutes,
-                    onTap: vm.busy ? null : vm.cycleDuration,
-                  ),
+                  if (vm.tracksMinutes)
+                    _DurationPill(
+                      value: vm.durationMinutes,
+                      onTap: vm.busy ? null : vm.cycleDuration,
+                    ),
                 ],
               ),
               const SizedBox(height: 16),
