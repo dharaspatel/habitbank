@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/group.dart';
-import '../services/group_service.dart';
+import '../services/group_service.dart' show GroupService, InvalidInviteCodeException;
 
 class JoinGroupViewModel extends ChangeNotifier {
   JoinGroupViewModel(this._service, this.userId);
@@ -28,8 +28,10 @@ class JoinGroupViewModel extends ChangeNotifier {
     try {
       _joined = await _service.joinGroupByCode(
           code: code.trim(), userId: userId);
+    } on InvalidInviteCodeException {
+      _error = 'No group with that code.';
     } catch (e) {
-      _error = e.toString();
+      _error = 'Could not join — try again.';
     } finally {
       _busy = false;
       notifyListeners();

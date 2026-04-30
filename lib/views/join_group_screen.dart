@@ -53,14 +53,23 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                     controller: _code,
                     placeholder: 'XXXXXX',
                     autocorrect: false,
+                    enableSuggestions: false,
                     textCapitalization: TextCapitalization.characters,
+                    textInputAction: TextInputAction.go,
+                    onSubmitted: (_) =>
+                        vm.busy ? null : vm.join(_code.text),
                     padding: const EdgeInsets.all(14),
+                    style: AppTheme.headline,
                   ),
                   const SizedBox(height: 24),
-                  PrimaryButton(
-                    label: 'Join',
-                    busy: vm.busy,
-                    onPressed: vm.busy ? null : () => vm.join(_code.text),
+                  SizedBox(
+                    width: double.infinity,
+                    child: PrimaryButton(
+                      label: 'Join',
+                      busy: vm.busy,
+                      busyLabel: 'Joining…',
+                      onPressed: vm.busy ? null : () => vm.join(_code.text),
+                    ),
                   ),
                   if (vm.error != null)
                     Padding(

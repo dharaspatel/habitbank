@@ -161,6 +161,34 @@ begin
 end;
 $$;
 
+-- Look up a group by its invite code and add the caller as a member.
+-- Runs as SECURITY DEFINER so the caller can find a group they're not yet
+-- a member of (the groups_select RLS policy hides those). Returns 0 rows
+-- when the code is unknown so the client can show a friendly error.
+create or replace function public.join_group_by_invite(p_code text)
+returns setof public.groups
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  g public.groups%rowtype;
+begin
+  select * into g from public.groups
+   where invite_code = upper(p_code)
+   limit 1;
+  if not found then
+    return;
+  end if;
+  insert into public.group_members (group_id, user_id)
+       values (g.id, auth.uid())
+  on conflict do nothing;
+  return next g;
+end;
+$$;
+
+revoke all on function public.join_group_by_invite(text) from public;
+grant execute on function public.join_group_by_invite(text) to authenticated;
+
 -- auto-create profile on signup
 create or replace function public.handle_new_user()
 returns trigger

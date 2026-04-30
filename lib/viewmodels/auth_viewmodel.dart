@@ -35,25 +35,49 @@ class AuthViewModel extends ChangeNotifier {
   bool get busy => _busy;
   String? get userId => _auth.currentUser?.id;
 
-  /// Sign in with email/password. If the account does not exist, automatically
-  /// create it with the same credentials. The Supabase response we treat as
-  /// "user not found" is the generic `invalid_credentials` error: we attempt
-  /// signup and only surface a real error if signup also fails.
+  /// Sign in with email/password. If Supabase reports invalid credentials we
+  /// optimistically attempt to sign up — first-time users get a one-tap
+  /// flow; existing users with a wrong password get a clear error.
+  ///
+  /// Re-entrancy guard: a tap while another auth call is in flight is a
+  /// no-op, so a frustrated double-tap can't accidentally trigger two
+  /// signups against the same email.
   Future<void> signInOrSignUp({
     required String email,
     required String password,
   }) async {
+    if (_busy) return;
     _busy = true;
     _error = null;
     notifyListeners();
     try {
       try {
         await _auth.signInWithEmail(email: email, password: password);
+        return; // success — onAuthStateChange will flip _status
       } on AuthException catch (e) {
-        if (_looksLikeMissingAccount(e)) {
-          await _auth.signUpWithEmail(email: email, password: password);
+        if (!_looksLikeMissingAccount(e)) {
+          _error = _friendly(e);
+          return;
+        }
+        // Account doesn't exist (or password wrong); try signup.
+      }
+      try {
+        final res =
+            await _auth.signUpWithEmail(email: email, password: password);
+        if (res.session == null) {
+          // Signup succeeded but no session — Supabase is set to require
+          // email confirmation, OR the email already exists and signup
+          // returned the existing user without a session.
+          _error =
+              'Check your email to confirm your account, or try a different password if you already signed up.';
+        }
+      } on AuthException catch (e) {
+        final msg = e.message.toLowerCase();
+        if (msg.contains('already registered') ||
+            msg.contains('already exists')) {
+          _error = 'Wrong password for that email.';
         } else {
-          rethrow;
+          _error = _friendly(e);
         }
       }
     } catch (e) {
@@ -69,12 +93,16 @@ class AuthViewModel extends ChangeNotifier {
     required String password,
     required String name,
   }) async {
+    if (_busy) return;
     _busy = true;
     _error = null;
     notifyListeners();
     try {
-      await _auth.signUpWithEmail(
+      final res = await _auth.signUpWithEmail(
           email: email, password: password, name: name);
+      if (res.session == null) {
+        _error = 'Check your email to confirm your account.';
+      }
     } catch (e) {
       _error = _friendly(e);
     } finally {

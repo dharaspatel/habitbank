@@ -57,17 +57,18 @@ class GroupService {
     required String code,
     required String userId,
   }) async {
-    final group = await _client
-        .from('groups')
-        .select()
-        .eq('invite_code', code.toUpperCase())
-        .single();
-    final g = Group.fromMap(group);
-    await _client.from('group_members').upsert({
-      'group_id': g.id,
-      'user_id': userId,
-    });
-    return g;
+    // Calls a SECURITY DEFINER RPC so we can look up a group we're not yet
+    // a member of (RLS hides those from a regular select). The RPC also
+    // inserts the membership atomically.
+    final res = await _client.rpc(
+      'join_group_by_invite',
+      params: {'p_code': code.trim().toUpperCase()},
+    );
+    final list = (res as List?) ?? const [];
+    if (list.isEmpty) {
+      throw const InvalidInviteCodeException();
+    }
+    return Group.fromMap(list.first as Map<String, dynamic>);
   }
 
   Future<List<GroupMember>> listMembers(String groupId) async {
@@ -132,4 +133,10 @@ class GroupService {
         .map((r) => WeeklyResult.fromMap(r as Map<String, dynamic>))
         .toList();
   }
+}
+
+class InvalidInviteCodeException implements Exception {
+  const InvalidInviteCodeException();
+  @override
+  String toString() => 'No group with that code.';
 }

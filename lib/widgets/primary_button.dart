@@ -8,11 +8,13 @@ class PrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.busy = false,
+    this.busyLabel,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final bool busy;
+  final String? busyLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +24,21 @@ class PrimaryButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       onPressed: busy ? null : onPressed,
       child: busy
-          ? const CupertinoActivityIndicator(color: AppTheme.background)
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CupertinoActivityIndicator(color: AppTheme.background),
+                const SizedBox(width: 12),
+                Text(
+                  busyLabel ?? label,
+                  style: const TextStyle(
+                    color: AppTheme.background,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            )
           : Text(
               label,
               style: const TextStyle(

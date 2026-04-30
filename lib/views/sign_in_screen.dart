@@ -17,12 +17,25 @@ class SignInScreen extends StatefulWidget {
 class _SignInScreenState extends State<SignInScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
 
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
+  }
+
+  void _submit() {
+    final vm = context.read<AuthViewModel>();
+    if (vm.busy) return;
+    vm.signInOrSignUp(
+      email: _email.text.trim(),
+      password: _password.text,
+    );
   }
 
   @override
@@ -36,63 +49,73 @@ class _SignInScreenState extends State<SignInScreen> {
         middle: Text(''),
       ),
       child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-          children: [
-            Text('Sign in',
-                style: AppTheme.balanceLarge.copyWith(fontSize: 40)),
-            const SizedBox(height: 24),
-            const SectionHeader('Email'),
-            CupertinoTextField(
-              controller: _email,
-              placeholder: 'you@example.com',
-              keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              padding: const EdgeInsets.all(14),
-            ),
-            const SectionHeader('Password'),
-            CupertinoTextField(
-              controller: _password,
-              placeholder: 'at least 6 characters',
-              obscureText: true,
-              padding: const EdgeInsets.all(14),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: PrimaryButton(
-                label: 'Sign in',
-                busy: vm.busy,
-                onPressed: vm.busy
-                    ? null
-                    : () => vm.signInOrSignUp(
-                          email: _email.text.trim(),
-                          password: _password.text,
-                        ),
+        child: AutofillGroup(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+            children: [
+              Text('Sign in',
+                  style: AppTheme.balanceLarge.copyWith(fontSize: 40)),
+              const SizedBox(height: 24),
+              const SectionHeader('Email'),
+              CupertinoTextField(
+                controller: _email,
+                focusNode: _emailFocus,
+                placeholder: 'you@example.com',
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.none,
+                autocorrect: false,
+                enableSuggestions: false,
+                autofillHints: const [AutofillHints.username, AutofillHints.email],
+                padding: const EdgeInsets.all(14),
+                onSubmitted: (_) => _passwordFocus.requestFocus(),
               ),
-            ),
-            if (vm.error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(vm.error!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: CupertinoColors.systemRed,
-                      fontSize: 13,
-                    )),
+              const SectionHeader('Password'),
+              CupertinoTextField(
+                controller: _password,
+                focusNode: _passwordFocus,
+                placeholder: 'at least 6 characters',
+                obscureText: true,
+                textInputAction: TextInputAction.go,
+                autocorrect: false,
+                enableSuggestions: false,
+                autofillHints: const [AutofillHints.password],
+                padding: const EdgeInsets.all(14),
+                onSubmitted: (_) => _submit(),
               ),
-            const SizedBox(height: 16),
-            Center(
-              child: CupertinoButton(
-                onPressed: () => Navigator.of(context).push(
-                  CupertinoPageRoute<void>(
-                      builder: (_) => const CreateAccountScreen()),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: PrimaryButton(
+                  label: 'Sign in',
+                  busy: vm.busy,
+                  busyLabel: 'Signing in…',
+                  onPressed: vm.busy ? null : _submit,
                 ),
-                child: const Text('New here? Create account',
-                    style: AppTheme.caption),
               ),
-            ),
-          ],
+              if (vm.error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(vm.error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: CupertinoColors.systemRed,
+                        fontSize: 13,
+                      )),
+                ),
+              const SizedBox(height: 16),
+              Center(
+                child: CupertinoButton(
+                  onPressed: () => Navigator.of(context).push(
+                    CupertinoPageRoute<void>(
+                        builder: (_) => const CreateAccountScreen()),
+                  ),
+                  child: const Text('New here? Create account',
+                      style: AppTheme.caption),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
