@@ -38,8 +38,8 @@ class GroupDetailScreen extends StatelessWidget {
           children: [
             CupertinoButton(
               padding: EdgeInsets.zero,
-              child: const Icon(CupertinoIcons.share,
-                  color: AppTheme.foreground),
+              child:
+                  const Icon(CupertinoIcons.share, color: AppTheme.foreground),
               onPressed: () => _showInviteSheet(context, vm),
             ),
             CupertinoButton(
@@ -166,8 +166,7 @@ class GroupDetailScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
             children: [
-              Text(code,
-                  style: AppTheme.balanceLarge.copyWith(fontSize: 36)),
+              Text(code, style: AppTheme.balanceLarge.copyWith(fontSize: 36)),
               const SizedBox(height: 8),
               Text(url, style: AppTheme.caption),
             ],
@@ -254,8 +253,7 @@ class _ChallengeEditor extends StatefulWidget {
 }
 
 class _ChallengeEditorState extends State<_ChallengeEditor> {
-  late GoalType _type =
-      widget.vm.challenge?.goalType ?? GoalType.workouts;
+  late GoalType _type = widget.vm.challenge?.goalType ?? GoalType.workouts;
   late int _target = widget.vm.challenge?.goalTarget ?? 4;
   late int _stakeCents = widget.vm.challenge?.stakeCents ?? 100;
 
@@ -308,15 +306,14 @@ class _ChallengeEditorState extends State<_ChallengeEditor> {
       ),
       actions: [
         CupertinoActionSheetAction(
-          onPressed: _stakeCents <= 0
-              ? null
-              : () async {
-                  await widget.vm.updateChallenge(
-                      type: _type,
-                      target: _target,
-                      stakeCents: _stakeCents);
-                  if (context.mounted) Navigator.of(context).pop();
-                },
+          onPressed: () async {
+            if (_stakeCents <= 0) {
+              return;
+            }
+            await widget.vm.updateChallenge(
+                type: _type, target: _target, stakeCents: _stakeCents);
+            if (context.mounted) Navigator.of(context).pop();
+          },
           child: const Text('Save'),
         ),
       ],
@@ -422,8 +419,7 @@ class _LogRow extends StatelessWidget {
                 color: AppTheme.subtle,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child:
-                  const Icon(CupertinoIcons.camera, color: AppTheme.muted),
+              child: const Icon(CupertinoIcons.camera, color: AppTheme.muted),
             ),
           const SizedBox(width: 12),
           Expanded(
