@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../config/theme.dart';
 import '../widgets/primary_button.dart';
@@ -18,12 +19,14 @@ class OnboardingScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 24),
-              const Text(
-                'HabitBank',
-                style: AppTheme.balanceLarge,
-                textAlign: TextAlign.center,
+              Center(
+                child: SvgPicture.asset(
+                  'assets/logo.svg',
+                  width: 200,
+                  semanticsLabel: 'HabitBank',
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               Text(
                 'Stake virtual money on your weekly workouts.\n'
                 'Miss your goal, your friends win the pool.',
