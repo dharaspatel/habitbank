@@ -1,0 +1,32 @@
+name: habitbank
+description: Social fitness accountability app with virtual money stakes.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  supabase_flutter: ^2.5.6
+  provider: ^6.1.2
+  flutter_dotenv: ^5.1.0
+  image_picker: ^1.1.2
+  intl: ^0.19.0
+  uuid: ^4.4.0
+  sign_in_with_apple: ^6.1.1
+  crypto: ^3.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: false
+  assets:
+    - .env
