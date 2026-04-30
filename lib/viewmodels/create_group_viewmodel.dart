@@ -21,7 +21,7 @@ class CreateGroupViewModel extends ChangeNotifier {
     required String name,
     required GoalType goalType,
     required int goalTarget,
-    required int stakePerWeek,
+    required int stakeCents,
   }) async {
     if (name.trim().isEmpty) {
       _error = 'Name required';
@@ -37,7 +37,7 @@ class CreateGroupViewModel extends ChangeNotifier {
         ownerId: userId,
         goalType: goalType,
         goalTarget: goalTarget,
-        stakePerWeek: stakePerWeek,
+        stakeCents: stakeCents,
       );
     } catch (e) {
       _error = e.toString();

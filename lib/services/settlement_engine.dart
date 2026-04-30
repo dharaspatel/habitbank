@@ -49,7 +49,7 @@ class SettlementEngine {
     final losers = <String>[];
     var pool = 0;
     final deltas = <String, int>{};
-    final stake = input.challenge.deductionX;
+    final stake = input.challenge.stakeCents;
 
     for (final userId in input.memberIds) {
       final t = totals[userId] ?? _Totals();

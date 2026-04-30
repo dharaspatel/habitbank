@@ -7,6 +7,7 @@ import '../services/supabase_service.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
+import '../widgets/money_field.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
 import 'edit_profile_screen.dart';
@@ -94,14 +95,17 @@ class _Body extends StatelessWidget {
               ],
             ),
             const SectionHeader('Bank'),
-            _StatRow(label: 'Total balance', value: home.totalBalance),
+            _StatRow(label: 'Total balance', display: _money(home.totalBalance)),
             const ThinDivider(),
-            _StatRow(label: 'Groups', value: home.groups.length),
+            _StatRow(label: 'Groups', display: '${home.groups.length}'),
             const ThinDivider(),
-            _StatRow(label: 'Streak', value: home.currentStreakWeeks,
-                suffix: home.currentStreakWeeks == 1 ? 'week' : 'weeks'),
+            _StatRow(
+              label: 'Streak',
+              display:
+                  '${home.currentStreakWeeks} ${home.currentStreakWeeks == 1 ? "week" : "weeks"}',
+            ),
             const ThinDivider(),
-            _StatRow(label: 'Best week', value: home.bestWeekDelta),
+            _StatRow(label: 'Best week', display: _money(home.bestWeekDelta)),
             const SizedBox(height: 32),
             PrimaryButton(label: 'Sign out', onPressed: auth.signOut),
           ],
@@ -112,25 +116,25 @@ class _Body extends StatelessWidget {
 }
 
 class _StatRow extends StatelessWidget {
-  const _StatRow({required this.label, required this.value, this.suffix = ''});
+  const _StatRow({required this.label, required this.display});
   final String label;
-  final int value;
-  final String suffix;
+  final String display;
 
   @override
   Widget build(BuildContext context) {
-    final sign = value < 0 ? '−' : '';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
         children: [
           Expanded(child: Text(label, style: AppTheme.body)),
-          Text(
-            suffix.isEmpty ? '$sign${value.abs()}' : '$value $suffix',
-            style: AppTheme.headline,
-          ),
+          Text(display, style: AppTheme.headline),
         ],
       ),
     );
   }
+}
+
+String _money(int cents) {
+  final abs = formatCents(cents.abs());
+  return cents < 0 ? '−$abs' : abs;
 }

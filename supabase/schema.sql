@@ -43,11 +43,13 @@ create table if not exists public.challenges (
   group_id uuid not null unique references public.groups(id) on delete cascade,
   goal_type text not null check (goal_type in ('workouts', 'minutes')),
   goal_target int not null check (goal_target > 0),
-  deduction_x int not null default 10 check (deduction_x > 0),
+  -- Per-user weekly stake, stored in cents (e.g. 100 = $1.00).
+  stake_cents int not null default 100 check (stake_cents > 0),
   created_at timestamptz not null default now()
 );
 
--- Migration from a previous per-user schema (no-op on fresh installs).
+-- Idempotent migration block: drops the legacy per-user column and renames
+-- `deduction_x` (units) to `stake_cents` (money). No-op on fresh installs.
 do $$
 begin
   if exists (
@@ -58,6 +60,23 @@ begin
     alter table public.challenges drop constraint if exists challenges_group_id_user_id_key;
     alter table public.challenges drop column user_id;
     alter table public.challenges add constraint challenges_group_id_key unique (group_id);
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'challenges'
+       and column_name = 'deduction_x'
+  ) and not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'challenges'
+       and column_name = 'stake_cents'
+  ) then
+    alter table public.challenges rename column deduction_x to stake_cents;
+    -- Old deduction_x was a small-integer "unit" count; rescale to cents
+    -- by treating each unit as one cent. Adjust manually if your data was
+    -- already in dollars.
+    alter table public.challenges
+      alter column stake_cents set default 100;
   end if;
 end $$;
 

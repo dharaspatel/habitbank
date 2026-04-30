@@ -43,7 +43,7 @@ void main() {
           groupId: 'g1',
           goalType: GoalType.workouts,
           goalTarget: 3,
-          deductionX: 10,
+          stakeCents: 100,
         ));
     when(() => ws.listForGroup('g1')).thenAnswer((_) async => [
           WorkoutLog(
@@ -97,12 +97,12 @@ void main() {
       currentUserId: 'me',
     );
     await vm.updateChallenge(
-        type: GoalType.workouts, target: 5, stakePerWeek: 20);
+        type: GoalType.workouts, target: 5, stakeCents: 200);
     verifyNever(() => gs.updateChallenge(
           groupId: any(named: 'groupId'),
           goalType: any(named: 'goalType'),
           goalTarget: any(named: 'goalTarget'),
-          stakePerWeek: any(named: 'stakePerWeek'),
+          stakeCents: any(named: 'stakeCents'),
         ));
   });
 }

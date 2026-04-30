@@ -12,7 +12,7 @@
 //
 // For each group, settles the *previous* ISO week (Mon..Sun UTC) using the
 // group's single Challenge row applied to every member:
-//   - misses goal => loses `deduction_x` units
+//   - misses goal => loses `stake_cents` units
 //   - winners split the loser pool equally (floor; remainder burns)
 //   - persists a weekly_results row, updates balances
 //
@@ -25,7 +25,7 @@ type GoalType = "workouts" | "minutes";
 interface Challenge {
   goal_type: GoalType;
   goal_target: number;
-  deduction_x: number;
+  stake_cents: number;
 }
 
 interface WorkoutLog {
@@ -71,7 +71,7 @@ export function settleGroup(args: {
   const losers: string[] = [];
   let pool = 0;
   const deltas: Record<string, number> = {};
-  const stake = args.challenge.deduction_x;
+  const stake = args.challenge.stake_cents;
 
   for (const userId of args.memberIds) {
     const t = totals.get(userId) ?? { workouts: 0, minutes: 0 };
@@ -125,7 +125,7 @@ Deno.serve(async (_req) => {
 
     const { data: challenge } = await supabase
       .from("challenges")
-      .select("goal_type, goal_target, deduction_x")
+      .select("goal_type, goal_target, stake_cents")
       .eq("group_id", g.id)
       .maybeSingle();
     if (!challenge) continue;

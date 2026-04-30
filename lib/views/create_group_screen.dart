@@ -7,6 +7,7 @@ import '../services/group_service.dart';
 import '../services/supabase_service.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/create_group_viewmodel.dart';
+import '../widgets/money_field.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
 
@@ -20,8 +21,8 @@ class CreateGroupScreen extends StatefulWidget {
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _name = TextEditingController();
   GoalType _goalType = GoalType.workouts;
-  int _target = 3;
-  int _stake = 10;
+  int _target = 4;
+  int _stakeCents = 100; // $1.00
 
   @override
   void dispose() {
@@ -87,26 +88,37 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     max: 1000,
                     onChange: (v) => setState(() => _target = v),
                   ),
-                  const SectionHeader('Weekly stake (virtual)'),
-                  _Stepper(
-                    value: _stake,
-                    step: 5,
-                    min: 5,
-                    max: 200,
-                    onChange: (v) => setState(() => _stake = v),
+                  const SectionHeader('Weekly stake'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: MoneyField(
+                      cents: _stakeCents,
+                      onChanged: (v) => setState(() => _stakeCents = v),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: Text(
+                      'Each member puts in this much per week. Members who '
+                      'miss the goal forfeit it to those who hit it.',
+                      style: AppTheme.caption,
+                    ),
                   ),
                   const SizedBox(height: 24),
-                  PrimaryButton(
-                    label: 'Create',
-                    busy: vm.busy,
-                    onPressed: vm.busy
-                        ? null
-                        : () => vm.create(
-                              name: _name.text,
-                              goalType: _goalType,
-                              goalTarget: _target,
-                              stakePerWeek: _stake,
-                            ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: PrimaryButton(
+                      label: 'Create',
+                      busy: vm.busy,
+                      onPressed: vm.busy || _stakeCents <= 0
+                          ? null
+                          : () => vm.create(
+                                name: _name.text,
+                                goalType: _goalType,
+                                goalTarget: _target,
+                                stakeCents: _stakeCents,
+                              ),
+                    ),
                   ),
                   if (vm.error != null)
                     Padding(

@@ -13,7 +13,7 @@ Challenge groupChallenge({
     groupId: 'g',
     goalType: type,
     goalTarget: target,
-    deductionX: stake,
+    stakeCents: stake,
   );
 }
 

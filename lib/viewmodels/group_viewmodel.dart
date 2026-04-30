@@ -73,14 +73,14 @@ class GroupViewModel extends ChangeNotifier {
   Future<void> updateChallenge({
     required GoalType type,
     required int target,
-    required int stakePerWeek,
+    required int stakeCents,
   }) async {
     if (!isOwner) return;
     _challenge = await _groupService.updateChallenge(
       groupId: group.id,
       goalType: type,
       goalTarget: target,
-      stakePerWeek: stakePerWeek,
+      stakeCents: stakeCents,
     );
     notifyListeners();
   }

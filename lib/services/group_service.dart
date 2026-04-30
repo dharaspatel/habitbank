@@ -27,7 +27,7 @@ class GroupService {
     required String ownerId,
     required GoalType goalType,
     required int goalTarget,
-    required int stakePerWeek,
+    required int stakeCents,
   }) async {
     final code = await _client.rpc('generate_invite_code') as String;
     final inserted = await _client
@@ -48,7 +48,7 @@ class GroupService {
       'group_id': group.id,
       'goal_type': goalTypeToString(goalType),
       'goal_target': goalTarget,
-      'deduction_x': stakePerWeek,
+      'stake_cents': stakeCents,
     });
     return group;
   }
@@ -99,14 +99,14 @@ class GroupService {
     required String groupId,
     required GoalType goalType,
     required int goalTarget,
-    required int stakePerWeek,
+    required int stakeCents,
   }) async {
     final row = await _client
         .from('challenges')
         .update({
           'goal_type': goalTypeToString(goalType),
           'goal_target': goalTarget,
-          'deduction_x': stakePerWeek,
+          'stake_cents': stakeCents,
         })
         .eq('group_id', groupId)
         .select()

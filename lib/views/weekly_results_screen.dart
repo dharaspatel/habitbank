@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../config/theme.dart';
 import '../viewmodels/weekly_results_viewmodel.dart';
+import '../widgets/money_field.dart';
 import '../widgets/section.dart';
 
 class WeeklyResultsScreen extends StatelessWidget {
@@ -44,8 +45,8 @@ class WeeklyResultsScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Pool ${r.poolAmount} • '
-                              '${r.winners.length} winners (${r.perWinner} each) • '
+                              'Pool ${formatCents(r.poolAmount)} • '
+                              '${r.winners.length} winners (${formatCents(r.perWinner)} each) • '
                               '${r.losers.length} losers',
                               style: AppTheme.caption,
                             ),

@@ -15,6 +15,7 @@ import '../services/workout_service.dart';
 import '../viewmodels/group_viewmodel.dart';
 import '../viewmodels/log_workout_viewmodel.dart';
 import '../viewmodels/weekly_results_viewmodel.dart';
+import '../widgets/money_field.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
 import 'log_workout_screen.dart';
@@ -212,8 +213,8 @@ class _ChallengeCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               c.goalType == GoalType.workouts
-                  ? 'workouts • stake ${c.deductionX}/wk'
-                  : 'minutes • stake ${c.deductionX}/wk',
+                  ? 'workouts • ${formatCents(c.stakeCents)}/wk stake'
+                  : 'minutes • ${formatCents(c.stakeCents)}/wk stake',
               style: AppTheme.caption,
             ),
             if (vm.isOwner)
@@ -248,8 +249,8 @@ class _ChallengeEditor extends StatefulWidget {
 class _ChallengeEditorState extends State<_ChallengeEditor> {
   late GoalType _type =
       widget.vm.challenge?.goalType ?? GoalType.workouts;
-  late int _target = widget.vm.challenge?.goalTarget ?? 3;
-  late int _stake = widget.vm.challenge?.deductionX ?? 10;
+  late int _target = widget.vm.challenge?.goalTarget ?? 4;
+  late int _stakeCents = widget.vm.challenge?.stakeCents ?? 100;
 
   @override
   Widget build(BuildContext context) {
@@ -279,21 +280,36 @@ class _ChallengeEditorState extends State<_ChallengeEditor> {
             step: _type == GoalType.minutes ? 30 : 1,
             onChange: (v) => setState(() => _target = v),
           ),
-          _StepperRow(
-            label: 'Stake / week',
-            value: _stake,
-            step: 5,
-            onChange: (v) => setState(() => _stake = v),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Text('Stake / week'),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: 140,
+                child: MoneyField(
+                  cents: _stakeCents,
+                  onChanged: (v) => setState(() => _stakeCents = v),
+                ),
+              ),
+            ],
           ),
         ],
       ),
       actions: [
         CupertinoActionSheetAction(
-          onPressed: () async {
-            await widget.vm.updateChallenge(
-                type: _type, target: _target, stakePerWeek: _stake);
-            if (context.mounted) Navigator.of(context).pop();
-          },
+          onPressed: _stakeCents <= 0
+              ? null
+              : () async {
+                  await widget.vm.updateChallenge(
+                      type: _type,
+                      target: _target,
+                      stakeCents: _stakeCents);
+                  if (context.mounted) Navigator.of(context).pop();
+                },
           child: const Text('Save'),
         ),
       ],

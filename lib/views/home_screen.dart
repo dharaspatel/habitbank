@@ -9,7 +9,7 @@ import '../services/workout_service.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/group_viewmodel.dart';
 import '../viewmodels/home_viewmodel.dart';
-import '../widgets/primary_button.dart';
+import '../widgets/money_field.dart';
 import '../widgets/section.dart';
 import 'create_group_screen.dart';
 import 'group_detail_screen.dart';
@@ -34,8 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final auth = context.read<AuthViewModel>();
       final vm = context.read<HomeViewModel>();
       if (auth.userId != null) {
-        // Defer until after the current build so notifyListeners() doesn't
-        // mark provider scopes dirty during build.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           vm.load(auth.userId!);
         });
@@ -53,6 +51,11 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: AppTheme.background,
         border: null,
         middle: const Text('HabitBank'),
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _showAddSheet,
+          child: const Icon(CupertinoIcons.add, color: AppTheme.foreground),
+        ),
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
           child: const Icon(CupertinoIcons.person, color: AppTheme.foreground),
@@ -78,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     const Text('Total balance', style: AppTheme.caption),
                     const SizedBox(height: 4),
-                    Text(_formatBalance(vm.totalBalance),
+                    Text(_formatSignedMoney(vm.totalBalance),
                         style: AppTheme.balanceLarge),
                   ],
                 ),
@@ -104,24 +107,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    PrimaryButton(
-                      label: 'Create group',
-                      onPressed: () => _push(const CreateGroupScreen()),
-                    ),
-                    const SizedBox(height: 12),
-                    SecondaryButton(
-                      label: 'Join with code',
-                      onPressed: () => _push(const JoinGroupScreen()),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -132,8 +117,36 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: Text(
-        'No groups yet. Create one or join with a code.',
+        'No groups yet. Tap + to create or join one.',
         style: AppTheme.body.copyWith(color: AppTheme.muted),
+      ),
+    );
+  }
+
+  void _showAddSheet() {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetCtx) => CupertinoActionSheet(
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(sheetCtx).pop();
+              _push(const CreateGroupScreen());
+            },
+            child: const Text('Create group'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(sheetCtx).pop();
+              _push(const JoinGroupScreen());
+            },
+            child: const Text('Join with code'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetCtx).pop(),
+          child: const Text('Cancel'),
+        ),
       ),
     );
   }
@@ -170,9 +183,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-String _formatBalance(int n) {
-  final sign = n < 0 ? '−' : '';
-  return '$sign${n.abs()}';
+/// "$1.20" or "−$1.20" — accepts a cents value.
+String _formatSignedMoney(int cents) {
+  final abs = formatCents(cents.abs());
+  return cents < 0 ? '−$abs' : abs;
 }
 
 class _GroupTile extends StatelessWidget {
@@ -205,7 +219,7 @@ class _GroupTile extends StatelessWidget {
                 ],
               ),
             ),
-            Text(_formatBalance(balance), style: AppTheme.headline),
+            Text(_formatSignedMoney(balance), style: AppTheme.headline),
             const SizedBox(width: 8),
             const Icon(CupertinoIcons.chevron_right,
                 size: 16, color: AppTheme.muted),
