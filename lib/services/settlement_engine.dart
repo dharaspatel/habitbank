@@ -37,6 +37,11 @@ class SettlementOutcome {
 }
 
 class SettlementEngine {
+  /// Each member individually wins or loses the week's stake:
+  ///   hit goal  →  delta = +stake
+  ///   miss goal →  delta = -stake
+  /// `pool` reports the total amount at risk this week (members × stake);
+  /// `perWinner` is just the stake (every winner gets exactly +stake).
   static SettlementOutcome settle(SettlementInput input) {
     final totals = <String, _Totals>{};
     for (final log in input.logs) {
@@ -47,7 +52,6 @@ class SettlementEngine {
 
     final winners = <String>[];
     final losers = <String>[];
-    var pool = 0;
     final deltas = <String, int>{};
     final stake = input.challenge.stakeCents;
 
@@ -58,23 +62,18 @@ class SettlementEngine {
           : t.minutes;
       if (score >= input.challenge.goalTarget) {
         winners.add(userId);
+        deltas[userId] = stake;
       } else {
         losers.add(userId);
-        pool += stake;
         deltas[userId] = -stake;
       }
-    }
-
-    final perWinner = winners.isEmpty ? 0 : pool ~/ winners.length;
-    for (final w in winners) {
-      deltas[w] = perWinner;
     }
 
     return SettlementOutcome(
       winners: winners,
       losers: losers,
-      pool: pool,
-      perWinner: perWinner,
+      pool: stake * input.memberIds.length,
+      perWinner: stake,
       deltas: deltas,
     );
   }

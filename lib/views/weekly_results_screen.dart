@@ -45,9 +45,9 @@ class WeeklyResultsScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Pool ${formatCents(r.poolAmount)} • '
-                              '${r.winners.length} winners (${formatCents(r.perWinner)} each) • '
-                              '${r.losers.length} losers',
+                              'Stake ${formatCents(r.perWinner)} • '
+                              '${r.winners.length} won (+${formatCents(r.perWinner)}) • '
+                              '${r.losers.length} lost (−${formatCents(r.perWinner)})',
                               style: AppTheme.caption,
                             ),
                           ],

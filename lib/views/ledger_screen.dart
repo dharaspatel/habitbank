@@ -23,14 +23,10 @@ class LedgerScreen extends StatelessWidget {
     final entries = <_Entry>[];
     var running = 0;
     for (final r in results.reversed) {
+      // Binary outcome: each member wins or loses exactly the stake (perWinner).
       var delta = 0;
       if (r.winners.contains(userId)) delta += r.perWinner;
-      if (r.losers.contains(userId)) {
-        // We don't store the per-user deduction here; estimate with pool/loser count.
-        final perLoser =
-            r.losers.isEmpty ? 0 : (r.poolAmount ~/ r.losers.length);
-        delta -= perLoser;
-      }
+      if (r.losers.contains(userId)) delta -= r.perWinner;
       running += delta;
       entries.insert(0, _Entry(
         label: '${df.format(r.weekStart)} – ${df.format(r.weekEnd)}',

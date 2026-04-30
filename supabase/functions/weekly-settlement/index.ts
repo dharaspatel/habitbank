@@ -67,9 +67,9 @@ export function settleGroup(args: {
     totals.set(log.user_id, t);
   }
 
+  // Each member individually wins or loses the week's stake.
   const winners: string[] = [];
   const losers: string[] = [];
-  let pool = 0;
   const deltas: Record<string, number> = {};
   const stake = args.challenge.stake_cents;
 
@@ -79,17 +79,20 @@ export function settleGroup(args: {
       args.challenge.goal_type === "workouts" ? t.workouts : t.minutes;
     if (score >= args.challenge.goal_target) {
       winners.push(userId);
+      deltas[userId] = stake;
     } else {
       losers.push(userId);
-      pool += stake;
       deltas[userId] = -stake;
     }
   }
 
-  const perWinner = winners.length > 0 ? Math.floor(pool / winners.length) : 0;
-  for (const w of winners) deltas[w] = perWinner;
-
-  return { winners, losers, pool, perWinner, deltas };
+  return {
+    winners,
+    losers,
+    pool: stake * args.memberIds.length,
+    perWinner: stake,
+    deltas,
+  };
 }
 
 Deno.serve(async (_req) => {

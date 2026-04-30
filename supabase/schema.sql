@@ -200,6 +200,13 @@ drop policy if exists profiles_update on public.profiles;
 create policy profiles_update on public.profiles
   for update using (id = auth.uid());
 
+-- The handle_new_user trigger creates the row at signup, but the supabase
+-- client also performs upserts when the user edits their profile — so we
+-- need an INSERT policy that lets a user write their own row.
+drop policy if exists profiles_insert on public.profiles;
+create policy profiles_insert on public.profiles
+  for insert with check (id = auth.uid());
+
 -- groups: members can read; anyone authenticated can create; owner can update
 drop policy if exists groups_select on public.groups;
 create policy groups_select on public.groups
@@ -267,3 +274,52 @@ create policy balances_select on public.balances
 drop policy if exists weekly_results_select on public.weekly_results;
 create policy weekly_results_select on public.weekly_results
   for select using (public.is_group_member(group_id, auth.uid()));
+
+-- =========================================================================
+-- Storage policies
+--
+-- Both buckets are public-read; writes require a signed-in user, and the
+-- caller may only write to a folder named after their own auth uid (we use
+-- "<uid>/<uuid>.jpg" as the key in the app).
+-- =========================================================================
+drop policy if exists "profile_photos_public_read" on storage.objects;
+create policy "profile_photos_public_read" on storage.objects
+  for select to public
+  using (bucket_id = 'profile-photos');
+
+drop policy if exists "profile_photos_owner_insert" on storage.objects;
+create policy "profile_photos_owner_insert" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'profile-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "profile_photos_owner_update" on storage.objects;
+create policy "profile_photos_owner_update" on storage.objects
+  for update to authenticated
+  using (
+    bucket_id = 'profile-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "profile_photos_owner_delete" on storage.objects;
+create policy "profile_photos_owner_delete" on storage.objects
+  for delete to authenticated
+  using (
+    bucket_id = 'profile-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "workout_photos_public_read" on storage.objects;
+create policy "workout_photos_public_read" on storage.objects
+  for select to public
+  using (bucket_id = 'workout-photos');
+
+drop policy if exists "workout_photos_owner_insert" on storage.objects;
+create policy "workout_photos_owner_insert" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'workout-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

@@ -6,7 +6,7 @@ import 'package:habitbank/services/settlement_engine.dart';
 Challenge groupChallenge({
   GoalType type = GoalType.workouts,
   int target = 3,
-  int stake = 10,
+  int stake = 100,
 }) {
   return Challenge(
     id: 'c',
@@ -33,10 +33,10 @@ WorkoutLog log({
 }
 
 void main() {
-  group('SettlementEngine.settle (one challenge per group)', () {
-    test('winners split loser pool equally', () {
+  group('SettlementEngine.settle (binary +stake / -stake per member)', () {
+    test('hitters gain stake, missers lose stake', () {
       final out = SettlementEngine.settle(SettlementInput(
-        challenge: groupChallenge(target: 3, stake: 10),
+        challenge: groupChallenge(target: 3, stake: 100),
         memberIds: ['a', 'b', 'c'],
         logs: [
           log(userId: 'a'), log(userId: 'a'), log(userId: 'a'),
@@ -46,40 +46,37 @@ void main() {
       ));
       expect(out.winners, ['a', 'b']);
       expect(out.losers, ['c']);
-      expect(out.pool, 10);
-      expect(out.perWinner, 5);
-      expect(out.deltas, {'a': 5, 'b': 5, 'c': -10});
+      expect(out.deltas, {'a': 100, 'b': 100, 'c': -100});
+      expect(out.perWinner, 100);
+      expect(out.pool, 300); // 3 members × 100c at risk
     });
 
-    test('no winners => pool burns', () {
+    test('all miss => everyone -stake', () {
       final out = SettlementEngine.settle(SettlementInput(
-        challenge: groupChallenge(target: 5, stake: 10),
+        challenge: groupChallenge(target: 5, stake: 100),
         memberIds: ['a', 'b'],
         logs: [log(userId: 'a'), log(userId: 'b')],
       ));
       expect(out.winners, isEmpty);
       expect(out.losers, ['a', 'b']);
-      expect(out.pool, 20);
-      expect(out.perWinner, 0);
-      expect(out.deltas, {'a': -10, 'b': -10});
+      expect(out.deltas, {'a': -100, 'b': -100});
     });
 
-    test('all winners => zero pool, zero deltas', () {
+    test('all hit => everyone +stake', () {
       final out = SettlementEngine.settle(SettlementInput(
-        challenge: groupChallenge(target: 1),
+        challenge: groupChallenge(target: 1, stake: 100),
         memberIds: ['a', 'b'],
         logs: [log(userId: 'a'), log(userId: 'b')],
       ));
       expect(out.winners, ['a', 'b']);
       expect(out.losers, isEmpty);
-      expect(out.pool, 0);
-      expect(out.perWinner, 0);
-      expect(out.deltas, {'a': 0, 'b': 0});
+      expect(out.deltas, {'a': 100, 'b': 100});
     });
 
-    test('minutes goal sums durations', () {
+    test('minutes goal sums durations across the week', () {
       final out = SettlementEngine.settle(SettlementInput(
-        challenge: groupChallenge(type: GoalType.minutes, target: 60, stake: 10),
+        challenge: groupChallenge(
+            type: GoalType.minutes, target: 60, stake: 250),
         memberIds: ['a', 'b'],
         logs: [
           log(userId: 'a', minutes: 30),
@@ -89,40 +86,23 @@ void main() {
       ));
       expect(out.winners, ['a']);
       expect(out.losers, ['b']);
-      expect(out.deltas, {'b': -10, 'a': 10});
-    });
-
-    test('tie split: integer floor; remainder burns', () {
-      // pool=10, 3 winners => perWinner=3, 1 unit burns
-      final out = SettlementEngine.settle(SettlementInput(
-        challenge: groupChallenge(target: 1, stake: 10),
-        memberIds: ['a', 'b', 'c', 'd'],
-        logs: [log(userId: 'a'), log(userId: 'b'), log(userId: 'c')],
-      ));
-      expect(out.pool, 10);
-      expect(out.winners, ['a', 'b', 'c']);
-      expect(out.losers, ['d']);
-      expect(out.perWinner, 3);
-      expect(out.deltas['a'], 3);
-      expect(out.deltas['b'], 3);
-      expect(out.deltas['c'], 3);
-      expect(out.deltas['d'], -10);
+      expect(out.deltas, {'a': 250, 'b': -250});
     });
 
     test('member with no logs is treated as a loser', () {
       final out = SettlementEngine.settle(SettlementInput(
-        challenge: groupChallenge(target: 1, stake: 5),
+        challenge: groupChallenge(target: 1, stake: 100),
         memberIds: ['a', 'silent'],
         logs: [log(userId: 'a')],
       ));
       expect(out.winners, ['a']);
       expect(out.losers, ['silent']);
-      expect(out.deltas, {'silent': -5, 'a': 5});
+      expect(out.deltas, {'a': 100, 'silent': -100});
     });
   });
 
   group('currentIsoWeekUtc', () {
-    test('returns Monday-aligned UTC week containing the timestamp', () {
+    test('Monday-aligned UTC week containing the timestamp', () {
       final week = currentIsoWeekUtc(DateTime.utc(2026, 1, 7, 15));
       expect(week.start, DateTime.utc(2026, 1, 5));
       expect(week.end, DateTime.utc(2026, 1, 12));
