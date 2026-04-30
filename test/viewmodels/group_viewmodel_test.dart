@@ -15,10 +15,10 @@ class _FakeGroupService extends Mock implements GroupService {}
 
 class _FakeWorkoutService extends Mock implements WorkoutService {}
 
-Group _g() => Group(
+Group _g({String owner = 'me'}) => Group(
       id: 'g1',
       name: 'A',
-      ownerId: 'me',
+      ownerId: owner,
       inviteCode: 'CODE12',
       createdAt: DateTime.utc(2026, 1, 1),
     );
@@ -38,23 +38,13 @@ void main() {
     when(() => gs.listMembers('g1'))
         .thenAnswer((_) async => [_m('me', 'Me'), _m('you', 'You')]);
     when(() => gs.listBalances('g1')).thenAnswer((_) async => <Balance>[]);
-    when(() => gs.getChallenge(
-            groupId: any(named: 'groupId'),
-            userId: any(named: 'userId')))
-        .thenAnswer((inv) async {
-      final uid = inv.namedArguments[#userId] as String;
-      if (uid == 'me') {
-        return Challenge(
+    when(() => gs.getChallenge('g1')).thenAnswer((_) async => Challenge(
           id: 'c1',
           groupId: 'g1',
-          userId: 'me',
           goalType: GoalType.workouts,
           goalTarget: 3,
           deductionX: 10,
-        );
-      }
-      return null;
-    });
+        ));
     when(() => ws.listForGroup('g1')).thenAnswer((_) async => [
           WorkoutLog(
             id: 'w1',
@@ -72,7 +62,6 @@ void main() {
             workoutType: 'g',
             loggedAt: week.start.add(const Duration(days: 2)),
           ),
-          // outside the week — should be ignored
           WorkoutLog(
             id: 'w3',
             userId: 'me',
@@ -92,8 +81,28 @@ void main() {
     await vm.load();
 
     expect(vm.members.length, 2);
-    expect(vm.myChallenge?.goalTarget, 3);
+    expect(vm.challenge?.goalTarget, 3);
     expect(vm.progressForUser('me'), 2);
     expect(vm.progressForUser('you'), 0);
+    expect(vm.isOwner, isTrue);
+  });
+
+  test('non-owner cannot edit challenge', () async {
+    final gs = _FakeGroupService();
+    final ws = _FakeWorkoutService();
+    final vm = GroupViewModel(
+      groupService: gs,
+      workoutService: ws,
+      group: _g(owner: 'someone-else'),
+      currentUserId: 'me',
+    );
+    await vm.updateChallenge(
+        type: GoalType.workouts, target: 5, stakePerWeek: 20);
+    verifyNever(() => gs.updateChallenge(
+          groupId: any(named: 'groupId'),
+          goalType: any(named: 'goalType'),
+          goalTarget: any(named: 'goalTarget'),
+          stakePerWeek: any(named: 'stakePerWeek'),
+        ));
   });
 }

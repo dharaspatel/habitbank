@@ -13,6 +13,10 @@ class Group {
   final String inviteCode;
   final DateTime createdAt;
 
+  /// Shareable invite URL. The receiver opens the app and pastes the code,
+  /// or — when universal links are wired up — taps and joins directly.
+  String get inviteUrl => 'https://habitbank.app/join/$inviteCode';
+
   factory Group.fromMap(Map<String, dynamic> map) => Group(
         id: map['id'] as String,
         name: map['name'] as String,

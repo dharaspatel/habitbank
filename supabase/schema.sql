@@ -36,18 +36,30 @@ create table if not exists public.group_members (
 create index if not exists group_members_user_idx on public.group_members(user_id);
 
 -- =========================================================================
--- challenges (per group; each user picks their own goal target)
+-- challenges (one per group; the same goal applies to every member)
 -- =========================================================================
 create table if not exists public.challenges (
   id uuid primary key default gen_random_uuid(),
-  group_id uuid not null references public.groups(id) on delete cascade,
-  user_id uuid not null references public.profiles(id) on delete cascade,
+  group_id uuid not null unique references public.groups(id) on delete cascade,
   goal_type text not null check (goal_type in ('workouts', 'minutes')),
   goal_target int not null check (goal_target > 0),
   deduction_x int not null default 10 check (deduction_x > 0),
-  created_at timestamptz not null default now(),
-  unique (group_id, user_id)
+  created_at timestamptz not null default now()
 );
+
+-- Migration from a previous per-user schema (no-op on fresh installs).
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'challenges'
+       and column_name = 'user_id'
+  ) then
+    alter table public.challenges drop constraint if exists challenges_group_id_user_id_key;
+    alter table public.challenges drop column user_id;
+    alter table public.challenges add constraint challenges_group_id_key unique (group_id);
+  end if;
+end $$;
 
 -- =========================================================================
 -- workout_logs
@@ -93,9 +105,11 @@ create table if not exists public.weekly_results (
 );
 
 -- =========================================================================
--- storage bucket for workout photos (run in dashboard or via API)
+-- storage buckets (run in dashboard or via API)
 -- =========================================================================
--- insert into storage.buckets (id, name, public) values ('workout-photos','workout-photos', true)
+-- insert into storage.buckets (id, name, public) values
+--   ('workout-photos', 'workout-photos', true),
+--   ('profile-photos', 'profile-photos', true)
 --   on conflict (id) do nothing;
 
 -- =========================================================================
@@ -195,20 +209,24 @@ drop policy if exists group_members_delete on public.group_members;
 create policy group_members_delete on public.group_members
   for delete using (user_id = auth.uid());
 
--- challenges
+-- challenges: members read; only the group owner writes.
 drop policy if exists challenges_select on public.challenges;
 create policy challenges_select on public.challenges
   for select using (public.is_group_member(group_id, auth.uid()));
 
-drop policy if exists challenges_upsert on public.challenges;
-create policy challenges_upsert on public.challenges
+drop policy if exists challenges_insert on public.challenges;
+create policy challenges_insert on public.challenges
   for insert with check (
-    user_id = auth.uid() and public.is_group_member(group_id, auth.uid())
+    exists (select 1 from public.groups
+             where id = group_id and owner_id = auth.uid())
   );
 
 drop policy if exists challenges_update on public.challenges;
 create policy challenges_update on public.challenges
-  for update using (user_id = auth.uid());
+  for update using (
+    exists (select 1 from public.groups
+             where id = group_id and owner_id = auth.uid())
+  );
 
 -- workout_logs
 drop policy if exists workout_logs_select on public.workout_logs;

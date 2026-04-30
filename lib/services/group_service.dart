@@ -25,6 +25,9 @@ class GroupService {
   Future<Group> createGroup({
     required String name,
     required String ownerId,
+    required GoalType goalType,
+    required int goalTarget,
+    required int stakePerWeek,
   }) async {
     final code = await _client.rpc('generate_invite_code') as String;
     final inserted = await _client
@@ -40,6 +43,12 @@ class GroupService {
     await _client.from('group_members').insert({
       'group_id': group.id,
       'user_id': ownerId,
+    });
+    await _client.from('challenges').insert({
+      'group_id': group.id,
+      'goal_type': goalTypeToString(goalType),
+      'goal_target': goalTarget,
+      'deduction_x': stakePerWeek,
     });
     return group;
   }
@@ -76,35 +85,30 @@ class GroupService {
     }).toList();
   }
 
-  Future<Challenge?> getChallenge({
-    required String groupId,
-    required String userId,
-  }) async {
+  Future<Challenge?> getChallenge(String groupId) async {
     final row = await _client
         .from('challenges')
         .select()
         .eq('group_id', groupId)
-        .eq('user_id', userId)
         .maybeSingle();
     return row == null ? null : Challenge.fromMap(row);
   }
 
-  Future<Challenge> upsertChallenge({
+  /// Owner-only on the server (RLS); UI should still gate this.
+  Future<Challenge> updateChallenge({
     required String groupId,
-    required String userId,
     required GoalType goalType,
     required int goalTarget,
-    int deductionX = 10,
+    required int stakePerWeek,
   }) async {
     final row = await _client
         .from('challenges')
-        .upsert({
-          'group_id': groupId,
-          'user_id': userId,
+        .update({
           'goal_type': goalTypeToString(goalType),
           'goal_target': goalTarget,
-          'deduction_x': deductionX,
-        }, onConflict: 'group_id,user_id')
+          'deduction_x': stakePerWeek,
+        })
+        .eq('group_id', groupId)
         .select()
         .single();
     return Challenge.fromMap(row);

@@ -10,25 +10,19 @@
 //        ); $$
 //   );
 //
-// For each group, settles the *previous* ISO week (Mon..Sun UTC):
+// For each group, settles the *previous* ISO week (Mon..Sun UTC) using the
+// group's single Challenge row applied to every member:
 //   - misses goal => loses `deduction_x` units
-//   - winners split the loser pool equally
+//   - winners split the loser pool equally (floor; remainder burns)
 //   - persists a weekly_results row, updates balances
 //
-// Edge cases:
-//   - tie splits evenly (integer floor; remainder burns)
-//   - no winners => pool is burned (zero distributed)
-//   - logs are read by `logged_at` between [week_start, week_end)
-//   - idempotent: skipped if a weekly_results row already exists for that week.
-//
-// Deploy with: `supabase functions deploy weekly-settlement --no-verify-jwt`
+// Idempotent: skipped if a weekly_results row already exists for that week.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 type GoalType = "workouts" | "minutes";
 
 interface Challenge {
-  user_id: string;
   goal_type: GoalType;
   goal_target: number;
   deduction_x: number;
@@ -40,7 +34,6 @@ interface WorkoutLog {
 }
 
 function previousIsoWeekUtc(now: Date): { start: Date; end: Date } {
-  // ISO weeks: Monday is day 1.
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const dayOfWeek = (d.getUTCDay() + 6) % 7; // Mon=0..Sun=6
   const thisMonday = new Date(d);
@@ -56,7 +49,8 @@ function isoDate(d: Date): string {
 }
 
 export function settleGroup(args: {
-  challenges: Challenge[];
+  challenge: Challenge;
+  memberIds: string[];
   logs: WorkoutLog[];
 }): {
   winners: string[];
@@ -77,23 +71,23 @@ export function settleGroup(args: {
   const losers: string[] = [];
   let pool = 0;
   const deltas: Record<string, number> = {};
+  const stake = args.challenge.deduction_x;
 
-  for (const c of args.challenges) {
-    const t = totals.get(c.user_id) ?? { workouts: 0, minutes: 0 };
-    const score = c.goal_type === "workouts" ? t.workouts : t.minutes;
-    if (score >= c.goal_target) {
-      winners.push(c.user_id);
+  for (const userId of args.memberIds) {
+    const t = totals.get(userId) ?? { workouts: 0, minutes: 0 };
+    const score =
+      args.challenge.goal_type === "workouts" ? t.workouts : t.minutes;
+    if (score >= args.challenge.goal_target) {
+      winners.push(userId);
     } else {
-      losers.push(c.user_id);
-      pool += c.deduction_x;
-      deltas[c.user_id] = (deltas[c.user_id] ?? 0) - c.deduction_x;
+      losers.push(userId);
+      pool += stake;
+      deltas[userId] = -stake;
     }
   }
 
   const perWinner = winners.length > 0 ? Math.floor(pool / winners.length) : 0;
-  for (const w of winners) {
-    deltas[w] = (deltas[w] ?? 0) + perWinner;
-  }
+  for (const w of winners) deltas[w] = perWinner;
 
   return { winners, losers, pool, perWinner, deltas };
 }
@@ -129,11 +123,19 @@ Deno.serve(async (_req) => {
       .maybeSingle();
     if (existing) continue;
 
-    const { data: challenges } = await supabase
+    const { data: challenge } = await supabase
       .from("challenges")
-      .select("user_id, goal_type, goal_target, deduction_x")
+      .select("goal_type, goal_target, deduction_x")
+      .eq("group_id", g.id)
+      .maybeSingle();
+    if (!challenge) continue;
+
+    const { data: members } = await supabase
+      .from("group_members")
+      .select("user_id")
       .eq("group_id", g.id);
-    if (!challenges || challenges.length === 0) continue;
+    const memberIds = (members ?? []).map((m: { user_id: string }) => m.user_id);
+    if (memberIds.length === 0) continue;
 
     const { data: logs } = await supabase
       .from("workout_logs")
@@ -143,7 +145,8 @@ Deno.serve(async (_req) => {
       .lt("logged_at", end.toISOString());
 
     const result = settleGroup({
-      challenges: challenges as Challenge[],
+      challenge: challenge as Challenge,
+      memberIds,
       logs: (logs ?? []) as WorkoutLog[],
     });
 

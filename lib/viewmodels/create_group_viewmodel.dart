@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../models/challenge.dart';
 import '../models/group.dart';
 import '../services/group_service.dart';
 
@@ -16,7 +17,12 @@ class CreateGroupViewModel extends ChangeNotifier {
   String? get error => _error;
   Group? get created => _created;
 
-  Future<void> create(String name) async {
+  Future<void> create({
+    required String name,
+    required GoalType goalType,
+    required int goalTarget,
+    required int stakePerWeek,
+  }) async {
     if (name.trim().isEmpty) {
       _error = 'Name required';
       notifyListeners();
@@ -26,7 +32,13 @@ class CreateGroupViewModel extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      _created = await _service.createGroup(name: name.trim(), ownerId: userId);
+      _created = await _service.createGroup(
+        name: name.trim(),
+        ownerId: userId,
+        goalType: goalType,
+        goalTarget: goalTarget,
+        stakePerWeek: stakePerWeek,
+      );
     } catch (e) {
       _error = e.toString();
     } finally {

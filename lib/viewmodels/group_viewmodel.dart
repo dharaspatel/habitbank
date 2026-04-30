@@ -28,28 +28,19 @@ class GroupViewModel extends ChangeNotifier {
   List<GroupMember> _members = const [];
   List<WorkoutLog> _logs = const [];
   List<Balance> _balances = const [];
-  List<Challenge> _challenges = const [];
-  Challenge? _myChallenge;
+  Challenge? _challenge;
 
   bool get loading => _loading;
   String? get error => _error;
   List<GroupMember> get members => _members;
   List<WorkoutLog> get logs => _logs;
   List<Balance> get balances => _balances;
-  Challenge? get myChallenge => _myChallenge;
+  Challenge? get challenge => _challenge;
+  bool get isOwner => group.ownerId == currentUserId;
 
   int progressForUser(String userId) {
-    final c = _challenges.firstWhere(
-      (c) => c.userId == userId,
-      orElse: () => Challenge(
-        id: '',
-        groupId: group.id,
-        userId: userId,
-        goalType: GoalType.workouts,
-        goalTarget: 0,
-        deductionX: 0,
-      ),
-    );
+    final c = _challenge;
+    if (c == null) return 0;
     final week = currentIsoWeekUtc(DateTime.now().toUtc());
     final mine = _logs.where((l) =>
         l.userId == userId &&
@@ -69,23 +60,7 @@ class GroupViewModel extends ChangeNotifier {
       _members = await _groupService.listMembers(group.id);
       _logs = await _workoutService.listForGroup(group.id);
       _balances = await _groupService.listBalances(group.id);
-      _challenges = [];
-      // Fetch each member's challenge in parallel.
-      final results = await Future.wait(_members.map((m) =>
-          _groupService.getChallenge(groupId: group.id, userId: m.userId)));
-      _challenges = results.whereType<Challenge>().toList();
-      _myChallenge = _challenges.firstWhere(
-        (c) => c.userId == currentUserId,
-        orElse: () => Challenge(
-          id: '',
-          groupId: group.id,
-          userId: currentUserId,
-          goalType: GoalType.workouts,
-          goalTarget: 0,
-          deductionX: 10,
-        ),
-      );
-      if (_myChallenge!.id.isEmpty) _myChallenge = null;
+      _challenge = await _groupService.getChallenge(group.id);
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -94,19 +69,19 @@ class GroupViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> setGoal({
+  /// Owner-only. RLS rejects writes from non-owners.
+  Future<void> updateChallenge({
     required GoalType type,
     required int target,
-    int deductionX = 10,
+    required int stakePerWeek,
   }) async {
-    final c = await _groupService.upsertChallenge(
+    if (!isOwner) return;
+    _challenge = await _groupService.updateChallenge(
       groupId: group.id,
-      userId: currentUserId,
       goalType: type,
       goalTarget: target,
-      deductionX: deductionX,
+      stakePerWeek: stakePerWeek,
     );
-    _myChallenge = c;
     notifyListeners();
   }
 }

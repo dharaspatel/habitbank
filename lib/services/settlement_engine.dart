@@ -4,8 +4,19 @@ import '../models/workout_log.dart';
 /// Pure settlement function. Mirrors the edge function — used for previews
 /// in-app and for unit tests that don't need a database.
 class SettlementInput {
-  SettlementInput({required this.challenges, required this.logs});
-  final List<Challenge> challenges;
+  SettlementInput({
+    required this.challenge,
+    required this.memberIds,
+    required this.logs,
+  });
+
+  /// The single goal applied to every member of the group.
+  final Challenge challenge;
+
+  /// All members of the group at the moment of settlement.
+  final List<String> memberIds;
+
+  /// Workout logs from the settled week, scoped to the group.
   final List<WorkoutLog> logs;
 }
 
@@ -26,7 +37,6 @@ class SettlementOutcome {
 }
 
 class SettlementEngine {
-  /// Stable ordering: challenges as given.
   static SettlementOutcome settle(SettlementInput input) {
     final totals = <String, _Totals>{};
     for (final log in input.logs) {
@@ -39,23 +49,25 @@ class SettlementEngine {
     final losers = <String>[];
     var pool = 0;
     final deltas = <String, int>{};
+    final stake = input.challenge.deductionX;
 
-    for (final c in input.challenges) {
-      final t = totals[c.userId] ?? _Totals();
-      final score = c.goalType == GoalType.workouts ? t.workouts : t.minutes;
-      if (score >= c.goalTarget) {
-        winners.add(c.userId);
+    for (final userId in input.memberIds) {
+      final t = totals[userId] ?? _Totals();
+      final score = input.challenge.goalType == GoalType.workouts
+          ? t.workouts
+          : t.minutes;
+      if (score >= input.challenge.goalTarget) {
+        winners.add(userId);
       } else {
-        losers.add(c.userId);
-        pool += c.deductionX;
-        deltas.update(c.userId, (v) => v - c.deductionX,
-            ifAbsent: () => -c.deductionX);
+        losers.add(userId);
+        pool += stake;
+        deltas[userId] = -stake;
       }
     }
 
     final perWinner = winners.isEmpty ? 0 : pool ~/ winners.length;
     for (final w in winners) {
-      deltas.update(w, (v) => v + perWinner, ifAbsent: () => perWinner);
+      deltas[w] = perWinner;
     }
 
     return SettlementOutcome(
@@ -75,8 +87,9 @@ class _Totals {
 
 /// Returns [Mon 00:00 UTC, next Mon 00:00 UTC) containing [now].
 ({DateTime start, DateTime end}) currentIsoWeekUtc(DateTime now) {
-  final utc = DateTime.utc(now.toUtc().year, now.toUtc().month, now.toUtc().day);
-  final dayOfWeek = (utc.weekday + 6) % 7; // Mon=0..Sun=6 (weekday: Mon=1..Sun=7)
+  final utc =
+      DateTime.utc(now.toUtc().year, now.toUtc().month, now.toUtc().day);
+  final dayOfWeek = (utc.weekday + 6) % 7; // Mon=0..Sun=6
   final start = utc.subtract(Duration(days: dayOfWeek));
   final end = start.add(const Duration(days: 7));
   return (start: start, end: end);
