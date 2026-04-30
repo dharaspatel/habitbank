@@ -133,18 +133,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _push(Widget w) {
+    final auth = context.read<AuthViewModel>();
+    final home = context.read<HomeViewModel>();
     Navigator.of(context)
         .push(CupertinoPageRoute<void>(builder: (_) => w))
         .then((_) {
-      final auth = context.read<AuthViewModel>();
-      if (auth.userId != null) {
-        context.read<HomeViewModel>().load(auth.userId!);
-      }
+      if (auth.userId != null) home.load(auth.userId!);
     });
   }
 
   void _openGroup(Group g) {
     final auth = context.read<AuthViewModel>();
+    final home = context.read<HomeViewModel>();
     final client = SupabaseService.client;
     Navigator.of(context).push(
       CupertinoPageRoute<void>(
@@ -159,9 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     ).then((_) {
-      if (auth.userId != null) {
-        context.read<HomeViewModel>().load(auth.userId!);
-      }
+      if (auth.userId != null) home.load(auth.userId!);
     });
   }
 }

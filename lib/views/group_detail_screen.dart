@@ -193,7 +193,7 @@ class _ChallengeCard extends StatelessWidget {
           const Text('This week', style: AppTheme.caption),
           const SizedBox(height: 4),
           if (c == null)
-            Text('No challenge yet', style: AppTheme.headline)
+            const Text('No challenge yet', style: AppTheme.headline)
           else ...[
             Text('$progress / ${c.goalTarget}', style: AppTheme.balanceLarge),
             const SizedBox(height: 4),

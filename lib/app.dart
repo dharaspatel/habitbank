@@ -25,10 +25,10 @@ class HabitBankApp extends StatelessWidget {
           create: (_) => HomeViewModel(GroupService(client)),
         ),
       ],
-      child: CupertinoApp(
+      child: const CupertinoApp(
         title: 'HabitBank',
         theme: AppTheme.theme,
-        home: const _Root(),
+        home: _Root(),
       ),
     );
   }
