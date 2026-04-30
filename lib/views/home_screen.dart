@@ -11,6 +11,7 @@ import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/group_viewmodel.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../widgets/app_card.dart';
+import '../widgets/habit_grid.dart';
 import '../widgets/money_field.dart';
 import '../widgets/section.dart';
 import 'create_account_screen.dart';
@@ -101,6 +102,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 4),
                     Text(_formatSignedMoney(vm.totalBalance),
                         style: AppTheme.balanceLarge),
+                    const SizedBox(height: 6),
+                    _TrendPill(change: vm.weekOverWeekChange),
                   ],
                 ),
               ),
@@ -128,6 +131,41 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
               ),
+            if (vm.userLogs.isNotEmpty || !vm.loading) ...[
+              const SliverToBoxAdapter(child: SectionHeader('Your habit')),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                  child: AppCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Last 12 weeks',
+                                style: AppTheme.caption),
+                            Text(
+                              '${vm.userLogs.length} workouts',
+                              style: AppTheme.caption,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        FittedBox(
+                          alignment: Alignment.centerLeft,
+                          child: HabitGrid(
+                            loggedAt:
+                                vm.userLogs.map((l) => l.loggedAt).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
@@ -209,6 +247,41 @@ class _HomeScreenState extends State<HomeScreen> {
 String _formatSignedMoney(int cents) {
   final abs = formatCents(cents.abs());
   return cents < 0 ? '−$abs' : abs;
+}
+
+/// Small trend chip rendered just under the balance: shows "▲N%" /
+/// "▼N%" / "—" based on the week-over-week change in workouts logged.
+class _TrendPill extends StatelessWidget {
+  const _TrendPill({required this.change});
+  final double? change;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = change;
+    final IconData icon;
+    final String label;
+    if (c == null) {
+      icon = CupertinoIcons.minus;
+      label = 'no data yet';
+    } else if (c > 0) {
+      icon = CupertinoIcons.arrow_up_right;
+      label = '${(c * 100).round()}% vs last week';
+    } else if (c < 0) {
+      icon = CupertinoIcons.arrow_down_right;
+      label = '${(c * 100).abs().round()}% vs last week';
+    } else {
+      icon = CupertinoIcons.minus;
+      label = 'flat vs last week';
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: AppTheme.muted),
+        const SizedBox(width: 4),
+        Text(label, style: AppTheme.caption),
+      ],
+    );
+  }
 }
 
 class _GroupTile extends StatelessWidget {

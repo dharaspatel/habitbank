@@ -23,6 +23,22 @@ class WorkoutService {
         .toList();
   }
 
+  Future<List<WorkoutLog>> listForUser({
+    required String userId,
+    DateTime? since,
+    int limit = 365,
+  }) async {
+    var query =
+        _client.from('workout_logs').select().eq('user_id', userId);
+    if (since != null) {
+      query = query.gte('logged_at', since.toIso8601String());
+    }
+    final rows = await query.order('logged_at', ascending: false).limit(limit);
+    return (rows as List)
+        .map((r) => WorkoutLog.fromMap(r as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<List<WorkoutLog>> listForUserInGroup({
     required String userId,
     required String groupId,

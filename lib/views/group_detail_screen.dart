@@ -3,12 +3,10 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../config/theme.dart';
 import '../models/challenge.dart';
-import '../models/workout_log.dart';
 import '../services/group_service.dart';
 import '../services/supabase_service.dart';
 import '../services/workout_service.dart';
@@ -21,6 +19,7 @@ import '../widgets/money_field.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
 import '../widgets/week_progress_ring.dart';
+import 'group_feed_screen.dart';
 import 'log_workout_screen.dart';
 import 'weekly_results_screen.dart';
 
@@ -102,37 +101,26 @@ class GroupDetailScreen extends StatelessWidget {
                     },
                   ),
                 ),
-                const SliverToBoxAdapter(child: SectionHeader('Activity')),
-                if (vm.logs.isEmpty)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'No workouts logged yet.',
-                        style: AppTheme.body.copyWith(color: AppTheme.muted),
-                      ),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 96),
-                    sliver: SliverList.separated(
-                      itemCount: vm.logs.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) => _LogCard(
-                        log: vm.logs[i],
-                        memberName: vm.members
-                            .firstWhere(
-                              (m) => m.userId == vm.logs[i].userId,
-                              orElse: () => vm.members.isEmpty
-                                  ? throw StateError('no members')
-                                  : vm.members.first,
-                            )
-                            .profile
-                            .name,
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 96),
+                    child: Center(
+                      child: CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () => _openFeed(context),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('See feed', style: AppTheme.body),
+                            const SizedBox(width: 4),
+                            const Icon(CupertinoIcons.chevron_right,
+                                size: 16, color: AppTheme.foreground),
+                          ],
+                        ),
                       ),
                     ),
                   ),
+                ),
               ],
             ),
             Positioned(
@@ -175,6 +163,19 @@ class GroupDetailScreen extends StatelessWidget {
       ),
     );
     await vm.load();
+  }
+
+  void _openFeed(BuildContext context) {
+    final vm = context.read<GroupViewModel>();
+    Navigator.of(context).push(
+      CupertinoPageRoute<void>(
+        builder: (_) => GroupFeedScreen(
+          groupName: vm.group.name,
+          logs: vm.logs,
+          members: vm.members,
+        ),
+      ),
+    );
   }
 
   void _showInviteSheet(BuildContext context, GroupViewModel vm) {
@@ -513,53 +514,3 @@ class _MemberCard extends StatelessWidget {
   }
 }
 
-class _LogCard extends StatelessWidget {
-  const _LogCard({required this.log, required this.memberName});
-  final WorkoutLog log;
-  final String memberName;
-
-  @override
-  Widget build(BuildContext context) {
-    final time = DateFormat.MMMd().add_jm().format(log.loggedAt.toLocal());
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (log.photoUrl != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(log.photoUrl!,
-                  width: 48, height: 48, fit: BoxFit.cover),
-            )
-          else
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppTheme.subtle,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(CupertinoIcons.camera, color: AppTheme.muted),
-            ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(memberName, style: AppTheme.body),
-                Text(
-                  log.durationMinutes > 0
-                      ? '${log.durationMinutes} min'
-                      : 'workout',
-                  style: AppTheme.caption,
-                ),
-              ],
-            ),
-          ),
-          Text(time, style: AppTheme.caption),
-        ],
-      ),
-    );
-  }
-}

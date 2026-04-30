@@ -5,6 +5,7 @@ import 'config/theme.dart';
 import 'services/auth_service.dart';
 import 'services/group_service.dart';
 import 'services/supabase_service.dart';
+import 'services/workout_service.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/home_viewmodel.dart';
 import 'views/home_screen.dart';
@@ -22,7 +23,10 @@ class HabitBankApp extends StatelessWidget {
           create: (_) => AuthViewModel(AuthService(client)),
         ),
         ChangeNotifierProvider(
-          create: (_) => HomeViewModel(GroupService(client)),
+          create: (_) => HomeViewModel(
+            GroupService(client),
+            WorkoutService(client),
+          ),
         ),
       ],
       child: const CupertinoApp(
