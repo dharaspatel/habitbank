@@ -15,9 +15,12 @@ import '../services/workout_service.dart';
 import '../viewmodels/group_viewmodel.dart';
 import '../viewmodels/log_workout_viewmodel.dart';
 import '../viewmodels/weekly_results_viewmodel.dart';
+import '../widgets/app_card.dart';
+import '../widgets/avatar.dart';
 import '../widgets/money_field.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
+import '../widgets/week_progress_ring.dart';
 import 'log_workout_screen.dart';
 import 'weekly_results_screen.dart';
 
@@ -71,56 +74,74 @@ class GroupDetailScreen extends StatelessWidget {
         ),
       ),
       child: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            CupertinoSliverRefreshControl(onRefresh: vm.load),
-            SliverToBoxAdapter(child: _ChallengeCard(vm: vm)),
-            const SliverToBoxAdapter(child: SectionHeader('Members')),
-            SliverList.separated(
-              itemCount: vm.members.length,
-              separatorBuilder: (_, __) => const ThinDivider(),
-              itemBuilder: (_, i) {
-                final m = vm.members[i];
-                return _MemberRow(
-                  name: m.profile.name.isEmpty ? 'Member' : m.profile.name,
-                  progress: vm.progressForUser(m.userId),
-                  goal: vm.challenge?.goalTarget,
-                );
-              },
+        child: Stack(
+          children: [
+            CustomScrollView(
+              slivers: [
+                CupertinoSliverRefreshControl(onRefresh: vm.load),
+                SliverToBoxAdapter(child: _MembersHero(vm: vm)),
+                SliverToBoxAdapter(child: _ChallengeRing(vm: vm)),
+                SliverToBoxAdapter(child: _PotentialLossCard(vm: vm)),
+                const SliverToBoxAdapter(child: SectionHeader('Members')),
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  sliver: SliverList.separated(
+                    itemCount: vm.members.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) {
+                      final m = vm.members[i];
+                      final progress = vm.progressForUser(m.userId);
+                      final goal = vm.challenge?.goalTarget;
+                      return _MemberCard(
+                        name:
+                            m.profile.name.isEmpty ? 'Member' : m.profile.name,
+                        photoUrl: m.profile.photoUrl,
+                        progress: progress,
+                        goal: goal,
+                      );
+                    },
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SectionHeader('Activity')),
+                if (vm.logs.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'No workouts logged yet.',
+                        style: AppTheme.body.copyWith(color: AppTheme.muted),
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 96),
+                    sliver: SliverList.separated(
+                      itemCount: vm.logs.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) => _LogCard(
+                        log: vm.logs[i],
+                        memberName: vm.members
+                            .firstWhere(
+                              (m) => m.userId == vm.logs[i].userId,
+                              orElse: () => vm.members.isEmpty
+                                  ? throw StateError('no members')
+                                  : vm.members.first,
+                            )
+                            .profile
+                            .name,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SliverToBoxAdapter(child: SectionHeader('Activity')),
-            if (vm.logs.isEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('No workouts logged yet.',
-                      style: AppTheme.body.copyWith(color: AppTheme.muted)),
-                ),
-              )
-            else
-              SliverList.separated(
-                itemCount: vm.logs.length,
-                separatorBuilder: (_, __) => const ThinDivider(),
-                itemBuilder: (_, i) => _LogRow(
-                  log: vm.logs[i],
-                  memberName: vm.members
-                      .firstWhere(
-                        (m) => m.userId == vm.logs[i].userId,
-                        orElse: () => vm.members.isEmpty
-                            ? throw StateError('no members')
-                            : vm.members.first,
-                      )
-                      .profile
-                      .name,
-                ),
-              ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: PrimaryButton(
-                  label: 'Log workout',
-                  onPressed: () => _openLog(context),
-                ),
+            Positioned(
+              left: 24,
+              right: 24,
+              bottom: 16,
+              child: PrimaryButton(
+                label: 'Log workout',
+                onPressed: () => _openLog(context),
               ),
             ),
           ],
@@ -193,40 +214,106 @@ class GroupDetailScreen extends StatelessWidget {
   }
 }
 
-class _ChallengeCard extends StatelessWidget {
-  const _ChallengeCard({required this.vm});
+/// Avatar stack with a colored ring per member encoding their progress
+/// (solid black = on track / hit goal, light = behind).
+class _MembersHero extends StatelessWidget {
+  const _MembersHero({required this.vm});
+  final GroupViewModel vm;
+
+  @override
+  Widget build(BuildContext context) {
+    final goal = vm.challenge?.goalTarget ?? 0;
+    final avatars = [
+      for (final m in vm.members)
+        AvatarCircle(
+          size: 44,
+          photoUrl: m.profile.photoUrl,
+          initial: m.profile.name.isNotEmpty ? m.profile.name : '·',
+          ringColor: _ringFor(vm.progressForUser(m.userId), goal),
+          ringWidth: 2,
+        ),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+      child: Center(child: AvatarStack(avatars: avatars, size: 44)),
+    );
+  }
+
+  static Color _ringFor(int progress, int goal) {
+    if (goal <= 0) return AppTheme.subtle;
+    if (progress >= goal) return AppTheme.foreground;
+    return AppTheme.subtle;
+  }
+}
+
+class _ChallengeRing extends StatelessWidget {
+  const _ChallengeRing({required this.vm});
   final GroupViewModel vm;
 
   @override
   Widget build(BuildContext context) {
     final c = vm.challenge;
     final progress = vm.progressForUser(vm.currentUserId);
+    if (c == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Text('No challenge yet',
+              style: AppTheme.headline.copyWith(color: AppTheme.muted)),
+        ),
+      );
+    }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Text('This week', style: AppTheme.caption),
-          const SizedBox(height: 4),
-          if (c == null)
-            const Text('No challenge yet',
-                style: AppTheme.headline, textAlign: TextAlign.center)
-          else ...[
-            Text(
-              '$progress / ${c.goalTarget}',
-              style: AppTheme.balanceLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              c.goalType == GoalType.workouts
-                  ? 'workouts • ${formatCents(c.stakeCents)}/wk stake'
-                  : 'minutes • ${formatCents(c.stakeCents)}/wk stake',
-              style: AppTheme.caption,
-              textAlign: TextAlign.center,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: Column(
+          children: [
+            const Text('this week', style: AppTheme.caption),
+            const SizedBox(height: 8),
+            WeekProgressRing(
+              value: progress,
+              target: c.goalTarget,
+              caption: 'complete',
             ),
           ],
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "You could lose $X" — shown when the current user hasn't yet hit the
+/// week's goal. Disappears once they're safe.
+class _PotentialLossCard extends StatelessWidget {
+  const _PotentialLossCard({required this.vm});
+  final GroupViewModel vm;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = vm.challenge;
+    if (c == null) return const SizedBox.shrink();
+    final progress = vm.progressForUser(vm.currentUserId);
+    if (progress >= c.goalTarget) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+      child: AppCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            const Text('🪙', style: TextStyle(fontSize: 22)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'You could lose ${formatCents(c.stakeCents)}',
+                style: AppTheme.body.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            Text(
+              '${c.goalTarget - progress} to go',
+              style: AppTheme.caption,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -388,23 +475,33 @@ class _StepperRow extends StatelessWidget {
   }
 }
 
-class _MemberRow extends StatelessWidget {
-  const _MemberRow({
+class _MemberCard extends StatelessWidget {
+  const _MemberCard({
     required this.name,
     required this.progress,
+    this.photoUrl,
     this.goal,
   });
 
   final String name;
   final int progress;
+  final String? photoUrl;
   final int? goal;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    final hit = goal != null && progress >= goal!;
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
+          AvatarCircle(
+            size: 36,
+            photoUrl: photoUrl,
+            initial: name,
+            ringColor: hit ? AppTheme.foreground : null,
+          ),
+          const SizedBox(width: 12),
           Expanded(child: Text(name, style: AppTheme.body)),
           Text(
             goal == null ? '$progress' : '$progress / $goal',
@@ -416,32 +513,32 @@ class _MemberRow extends StatelessWidget {
   }
 }
 
-class _LogRow extends StatelessWidget {
-  const _LogRow({required this.log, required this.memberName});
+class _LogCard extends StatelessWidget {
+  const _LogCard({required this.log, required this.memberName});
   final WorkoutLog log;
   final String memberName;
 
   @override
   Widget build(BuildContext context) {
     final time = DateFormat.MMMd().add_jm().format(log.loggedAt.toLocal());
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (log.photoUrl != null)
             ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
               child: Image.network(log.photoUrl!,
-                  width: 44, height: 44, fit: BoxFit.cover),
+                  width: 48, height: 48, fit: BoxFit.cover),
             )
           else
             Container(
-              width: 44,
-              height: 44,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: AppTheme.subtle,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(CupertinoIcons.camera, color: AppTheme.muted),
             ),
@@ -451,8 +548,12 @@ class _LogRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(memberName, style: AppTheme.body),
-                Text('${log.durationMinutes} min • ${log.workoutType}',
-                    style: AppTheme.caption),
+                Text(
+                  log.durationMinutes > 0
+                      ? '${log.durationMinutes} min'
+                      : 'workout',
+                  style: AppTheme.caption,
+                ),
               ],
             ),
           ),

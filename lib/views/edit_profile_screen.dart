@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../config/theme.dart';
 import '../viewmodels/profile_viewmodel.dart';
+import '../widgets/avatar.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
 
@@ -51,25 +52,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             Center(
               child: GestureDetector(
                 onTap: vm.busy ? null : vm.pickPhoto,
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppTheme.subtle,
-                    image: preview != null
-                        ? DecorationImage(
-                            image: FileImage(preview), fit: BoxFit.cover)
-                        : (url != null
-                            ? DecorationImage(
-                                image: NetworkImage(url), fit: BoxFit.cover)
-                            : null),
-                  ),
-                  child: (preview == null && url == null)
-                      ? const Icon(CupertinoIcons.person,
-                          size: 36, color: AppTheme.muted)
-                      : null,
-                ),
+                child: preview != null
+                    ? ClipOval(
+                        child: Image.file(preview,
+                            width: 96, height: 96, fit: BoxFit.cover),
+                      )
+                    : AvatarCircle(
+                        size: 96,
+                        photoUrl: url,
+                        initial: vm.profile?.name,
+                      ),
               ),
             ),
             const SizedBox(height: 8),

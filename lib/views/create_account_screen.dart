@@ -2,133 +2,127 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
 import '../config/theme.dart';
+import '../services/profile_service.dart';
+import '../services/supabase_service.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import '../viewmodels/profile_viewmodel.dart';
+import '../widgets/avatar.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
 
-class CreateAccountScreen extends StatefulWidget {
+/// Post-signup profile setup. The auth flow only needs email + password;
+/// new users land here so they can pick an avatar and a display name before
+/// they reach the home screen.
+class CreateAccountScreen extends StatelessWidget {
   const CreateAccountScreen({super.key});
 
   @override
-  State<CreateAccountScreen> createState() => _CreateAccountScreenState();
+  Widget build(BuildContext context) {
+    final auth = context.read<AuthViewModel>();
+    return ChangeNotifierProvider(
+      create: (_) => ProfileViewModel(
+        service: ProfileService(SupabaseService.client),
+        userId: auth.userId!,
+      )..load(),
+      child: const _Body(),
+    );
+  }
 }
 
-class _CreateAccountScreenState extends State<CreateAccountScreen> {
+class _Body extends StatefulWidget {
+  const _Body();
+
+  @override
+  State<_Body> createState() => _BodyState();
+}
+
+class _BodyState extends State<_Body> {
   final _name = TextEditingController();
-  final _email = TextEditingController();
-  final _password = TextEditingController();
-  final _nameFocus = FocusNode();
-  final _emailFocus = FocusNode();
-  final _passwordFocus = FocusNode();
+  bool _hydrated = false;
 
   @override
   void dispose() {
     _name.dispose();
-    _email.dispose();
-    _password.dispose();
-    _nameFocus.dispose();
-    _emailFocus.dispose();
-    _passwordFocus.dispose();
     super.dispose();
-  }
-
-  void _submit() {
-    final vm = context.read<AuthViewModel>();
-    if (vm.busy) return;
-    vm.signUp(
-      email: _email.text.trim(),
-      password: _password.text,
-      name: _name.text.trim(),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<AuthViewModel>();
+    final vm = context.watch<ProfileViewModel>();
+    if (!_hydrated && vm.profile != null) {
+      _hydrated = true;
+      _name.text = vm.profile!.name;
+    }
+    final canSave = _name.text.trim().isNotEmpty && !vm.busy;
+    final preview = vm.pickedPhoto;
+    final url = vm.profile?.photoUrl;
     return CupertinoPageScaffold(
       backgroundColor: AppTheme.background,
       navigationBar: const CupertinoNavigationBar(
         backgroundColor: AppTheme.background,
         border: null,
-        previousPageTitle: 'Sign in',
         middle: Text('Create account'),
       ),
       child: SafeArea(
-        child: AutofillGroup(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-            children: [
-              Text('Create account',
-                  style: AppTheme.balanceLarge.copyWith(fontSize: 40)),
-              const SizedBox(height: 24),
-              const SectionHeader('Name'),
-              CupertinoTextField(
-                controller: _name,
-                focusNode: _nameFocus,
-                placeholder: 'Your name',
-                textInputAction: TextInputAction.next,
-                textCapitalization: TextCapitalization.words,
-                autofillHints: const [AutofillHints.name],
-                padding: const EdgeInsets.all(14),
-                onSubmitted: (_) => _emailFocus.requestFocus(),
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            const SizedBox(height: 16),
+            Center(
+              child: GestureDetector(
+                onTap: vm.busy ? null : vm.pickPhoto,
+                child: preview != null
+                    ? ClipOval(
+                        child: Image.file(preview,
+                            width: 120, height: 120, fit: BoxFit.cover),
+                      )
+                    : AvatarCircle(size: 120, photoUrl: url),
               ),
-              const SectionHeader('Email'),
-              CupertinoTextField(
-                controller: _email,
-                focusNode: _emailFocus,
-                placeholder: 'you@example.com',
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                textCapitalization: TextCapitalization.none,
-                autocorrect: false,
-                enableSuggestions: false,
-                autofillHints: const [AutofillHints.email, AutofillHints.username],
-                padding: const EdgeInsets.all(14),
-                onSubmitted: (_) => _passwordFocus.requestFocus(),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: CupertinoButton(
+                onPressed: vm.busy ? null : vm.pickPhoto,
+                child:
+                    const Text('Add photo', style: AppTheme.caption),
               ),
-              const SectionHeader('Password'),
-              CupertinoTextField(
-                controller: _password,
-                focusNode: _passwordFocus,
-                placeholder: 'at least 6 characters',
-                obscureText: true,
-                textInputAction: TextInputAction.go,
-                autocorrect: false,
-                enableSuggestions: false,
-                autofillHints: const [AutofillHints.newPassword],
-                padding: const EdgeInsets.all(14),
-                onSubmitted: (_) => _submit(),
+            ),
+            const SectionHeader('Name'),
+            CupertinoTextField(
+              controller: _name,
+              placeholder: 'Your name',
+              padding: const EdgeInsets.all(14),
+              textCapitalization: TextCapitalization.words,
+              autofillHints: const [AutofillHints.name],
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: PrimaryButton(
+                label: 'Next',
+                busy: vm.busy,
+                busyLabel: 'Saving…',
+                onPressed: canSave
+                    ? () async {
+                        final navigator = Navigator.of(context);
+                        await vm.save(name: _name.text.trim());
+                        if (vm.error == null) {
+                          if (navigator.canPop()) navigator.pop();
+                        }
+                      }
+                    : null,
               ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: PrimaryButton(
-                  label: 'Create account',
-                  busy: vm.busy,
-                  busyLabel: 'Creating…',
-                  onPressed: vm.busy ? null : _submit,
-                ),
+            ),
+            if (vm.error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(vm.error!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: CupertinoColors.systemRed, fontSize: 13)),
               ),
-              if (vm.error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(vm.error!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: CupertinoColors.systemRed,
-                        fontSize: 13,
-                      )),
-                ),
-              const SizedBox(height: 16),
-              Center(
-                child: CupertinoButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Back to sign in',
-                      style: AppTheme.caption),
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );

@@ -10,6 +10,7 @@ import '../viewmodels/profile_viewmodel.dart';
 import '../widgets/money_field.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
+import '../widgets/avatar.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -49,21 +50,10 @@ class _Body extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppTheme.subtle,
-                    image: url != null
-                        ? DecorationImage(
-                            image: NetworkImage(url), fit: BoxFit.cover)
-                        : null,
-                  ),
-                  child: url != null
-                      ? null
-                      : const Icon(CupertinoIcons.person,
-                          color: AppTheme.muted),
+                AvatarCircle(
+                  size: 64,
+                  photoUrl: url,
+                  initial: vm.profile?.name,
                 ),
                 const SizedBox(width: 16),
                 Expanded(

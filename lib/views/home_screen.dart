@@ -4,13 +4,16 @@ import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../models/group.dart';
 import '../services/group_service.dart';
+import '../services/profile_service.dart';
 import '../services/supabase_service.dart';
 import '../services/workout_service.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/group_viewmodel.dart';
 import '../viewmodels/home_viewmodel.dart';
+import '../widgets/app_card.dart';
 import '../widgets/money_field.dart';
 import '../widgets/section.dart';
+import 'create_account_screen.dart';
 import 'create_group_screen.dart';
 import 'group_detail_screen.dart';
 import 'join_group_screen.dart';
@@ -32,10 +35,25 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!_loaded) {
       _loaded = true;
       final auth = context.read<AuthViewModel>();
-      final vm = context.read<HomeViewModel>();
+      final home = context.read<HomeViewModel>();
       if (auth.userId != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          vm.load(auth.userId!);
+        final userId = auth.userId!;
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          home.load(userId);
+          // First-launch profile setup: a fresh signup leaves profiles.name
+          // empty. Send the user through the avatar + name screen before
+          // they see anything else.
+          final profile =
+              await ProfileService(SupabaseService.client).get(userId);
+          if (!mounted) return;
+          if (profile == null || profile.name.trim().isEmpty) {
+            await Navigator.of(context).push(
+              CupertinoPageRoute<void>(
+                fullscreenDialog: true,
+                builder: (_) => const CreateAccountScreen(),
+              ),
+            );
+          }
         });
       }
     }
@@ -95,18 +113,22 @@ class _HomeScreenState extends State<HomeScreen> {
             else if (vm.groups.isEmpty)
               SliverToBoxAdapter(child: _emptyState(context))
             else
-              SliverList.separated(
-                itemCount: vm.groups.length,
-                separatorBuilder: (_, __) => const ThinDivider(),
-                itemBuilder: (_, i) {
-                  final g = vm.groups[i];
-                  return _GroupTile(
-                    group: g,
-                    balance: vm.balanceForGroup(g.id),
-                    onTap: () => _openGroup(g),
-                  );
-                },
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                sliver: SliverList.separated(
+                  itemCount: vm.groups.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (_, i) {
+                    final g = vm.groups[i];
+                    return _GroupTile(
+                      group: g,
+                      balance: vm.balanceForGroup(g.id),
+                      onTap: () => _openGroup(g),
+                    );
+                  },
+                ),
               ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
       ),
@@ -202,29 +224,25 @@ class _GroupTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(group.name, style: AppTheme.headline),
-                  const SizedBox(height: 2),
-                  Text('Code ${group.inviteCode}', style: AppTheme.caption),
-                ],
-              ),
+    return AppCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(group.name, style: AppTheme.headline),
+                const SizedBox(height: 2),
+                Text('Code ${group.inviteCode}', style: AppTheme.caption),
+              ],
             ),
-            Text(_formatSignedMoney(balance), style: AppTheme.headline),
-            const SizedBox(width: 8),
-            const Icon(CupertinoIcons.chevron_right,
-                size: 16, color: AppTheme.muted),
-          ],
-        ),
+          ),
+          Text(_formatSignedMoney(balance), style: AppTheme.headline),
+          const SizedBox(width: 8),
+          const Icon(CupertinoIcons.chevron_right,
+              size: 16, color: AppTheme.muted),
+        ],
       ),
     );
   }
