@@ -26,14 +26,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     OnboardingPage(
       headline: 'Bet on yourself.',
       body: 'Stake real money on weekly fitness goals you actually want to hit.',
+      gifAsset: 'assets/onboarding/1.gif',
     ),
     OnboardingPage(
       headline: 'Bet with friends.',
       body: 'Create a group, set the goal, and put a stake on it together.',
+      gifAsset: 'assets/onboarding/2.gif',
     ),
     OnboardingPage(
       headline: 'Stay consistent.',
       body: 'Hit the goal — keep your stake. Miss it — lose it.',
+      gifAsset: 'assets/onboarding/3.gif',
     ),
   ];
 
