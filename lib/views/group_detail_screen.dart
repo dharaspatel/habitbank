@@ -60,6 +60,13 @@ class GroupDetailScreen extends StatelessWidget {
                 );
               },
             ),
+            if (vm.isOwner)
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                child: const Icon(CupertinoIcons.pencil,
+                    color: AppTheme.foreground),
+                onPressed: () => _openEditChallenge(context),
+              ),
           ],
         ),
       ),
@@ -200,42 +207,42 @@ class _ChallengeCard extends StatelessWidget {
     final c = vm.challenge;
     final progress = vm.progressForUser(vm.currentUserId);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const Text('This week', style: AppTheme.caption),
           const SizedBox(height: 4),
           if (c == null)
-            const Text('No challenge yet', style: AppTheme.headline)
+            const Text('No challenge yet',
+                style: AppTheme.headline, textAlign: TextAlign.center)
           else ...[
-            Text('$progress / ${c.goalTarget}', style: AppTheme.balanceLarge),
+            Text(
+              '$progress / ${c.goalTarget}',
+              style: AppTheme.balanceLarge,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 4),
             Text(
               c.goalType == GoalType.workouts
                   ? 'workouts • ${formatCents(c.stakeCents)}/wk stake'
                   : 'minutes • ${formatCents(c.stakeCents)}/wk stake',
               style: AppTheme.caption,
+              textAlign: TextAlign.center,
             ),
-            if (vm.isOwner)
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                child: const Text('Edit challenge', style: AppTheme.caption),
-                onPressed: () => _openEdit(context),
-              ),
           ],
         ],
       ),
     );
   }
+}
 
-  void _openEdit(BuildContext context) {
-    final vmRef = context.read<GroupViewModel>();
-    showCupertinoModalPopup<void>(
-      context: context,
-      builder: (_) => _ChallengeEditor(vm: vmRef),
-    );
-  }
+void _openEditChallenge(BuildContext context) {
+  final vmRef = context.read<GroupViewModel>();
+  showCupertinoModalPopup<void>(
+    context: context,
+    builder: (_) => _ChallengeEditor(vm: vmRef),
+  );
 }
 
 class _ChallengeEditor extends StatefulWidget {
