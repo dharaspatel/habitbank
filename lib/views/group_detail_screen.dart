@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -118,20 +121,30 @@ class GroupDetailScreen extends StatelessWidget {
     );
   }
 
-  void _openLog(BuildContext context) {
+  Future<void> _openLog(BuildContext context) async {
     final vm = context.read<GroupViewModel>();
-    Navigator.of(context).push(
+    final picker = ImagePicker();
+    final captured = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 80,
+    );
+    if (captured == null) return;
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
       CupertinoPageRoute<void>(
         builder: (_) => ChangeNotifierProvider(
           create: (_) => LogWorkoutViewModel(
             service: WorkoutService(SupabaseService.client),
             userId: vm.currentUserId,
             groupId: vm.group.id,
+            photo: File(captured.path),
+            picker: picker,
           ),
           child: const LogWorkoutScreen(),
         ),
       ),
-    ).then((_) => vm.load());
+    );
+    await vm.load();
   }
 
   void _showInviteSheet(BuildContext context, GroupViewModel vm) {

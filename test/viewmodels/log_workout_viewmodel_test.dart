@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:habitbank/models/workout_log.dart';
 import 'package:habitbank/services/workout_service.dart';
@@ -7,53 +9,67 @@ import 'package:mocktail/mocktail.dart';
 class _FakeService extends Mock implements WorkoutService {}
 
 void main() {
-  test('cannot submit until photo captured', () {
-    final vm = LogWorkoutViewModel(
-      service: _FakeService(),
-      userId: 'u',
-      groupId: 'g',
-    );
-    expect(vm.canSubmit, isFalse);
+  setUpAll(() {
+    registerFallbackValue(File('placeholder'));
   });
 
-  test('submit forwards to service and stores result', () async {
+  LogWorkoutViewModel build({WorkoutService? svc}) => LogWorkoutViewModel(
+        service: svc ?? _FakeService(),
+        userId: 'u',
+        groupId: 'g',
+        photo: File('/tmp/fake.jpg'),
+      );
+
+  test('starts ready to submit with sensible defaults', () {
+    final vm = build();
+    expect(vm.canSubmit, isTrue);
+    expect(vm.durationMinutes, 30);
+  });
+
+  test('cycleDuration walks the presets and wraps', () {
+    final vm = build();
+    expect(vm.durationMinutes, 30);
+    vm.cycleDuration();
+    expect(vm.durationMinutes, 45);
+    vm.cycleDuration();
+    expect(vm.durationMinutes, 60);
+    vm.cycleDuration();
+    expect(vm.durationMinutes, 90);
+    vm.cycleDuration();
+    expect(vm.durationMinutes, 15);
+    vm.cycleDuration();
+    expect(vm.durationMinutes, 30);
+  });
+
+  test('submit forwards photo + duration to the service', () async {
     final svc = _FakeService();
-    final saved = WorkoutLog(
-      id: 'x',
-      userId: 'u',
-      groupId: 'g',
-      durationMinutes: 30,
-      workoutType: 'general',
-      loggedAt: DateTime.utc(2026, 1, 1),
-    );
     when(() => svc.logWorkout(
           userId: any(named: 'userId'),
           groupId: any(named: 'groupId'),
           durationMinutes: any(named: 'durationMinutes'),
           workoutType: any(named: 'workoutType'),
           photo: any(named: 'photo'),
-        )).thenAnswer((_) async => saved);
+        )).thenAnswer((_) async => WorkoutLog(
+          id: 'x',
+          userId: 'u',
+          groupId: 'g',
+          durationMinutes: 45,
+          workoutType: 'workout',
+          loggedAt: DateTime.utc(2026, 1, 1),
+        ));
 
-    final vm = LogWorkoutViewModel(
-      service: svc,
-      userId: 'u',
-      groupId: 'g',
-    );
-    vm.setDuration(45);
-    vm.setType('run');
-    // Bypass photo capture for unit-test.
-    expect(vm.canSubmit, isFalse);
-  });
+    final vm = build(svc: svc);
+    vm.cycleDuration(); // 30 -> 45
+    await vm.submit();
 
-  test('setDuration / setType update state', () {
-    final vm = LogWorkoutViewModel(
-      service: _FakeService(),
-      userId: 'u',
-      groupId: 'g',
-    );
-    vm.setDuration(60);
-    vm.setType('run');
-    expect(vm.durationMinutes, 60);
-    expect(vm.workoutType, 'run');
+    verify(() => svc.logWorkout(
+          userId: 'u',
+          groupId: 'g',
+          durationMinutes: 45,
+          workoutType: 'workout',
+          photo: any(named: 'photo'),
+        )).called(1);
+    expect(vm.saved, isNotNull);
+    expect(vm.error, isNull);
   });
 }

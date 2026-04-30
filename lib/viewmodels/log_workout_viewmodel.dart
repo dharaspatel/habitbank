@@ -11,49 +11,47 @@ class LogWorkoutViewModel extends ChangeNotifier {
     required WorkoutService service,
     required this.userId,
     required this.groupId,
+    required File photo,
     ImagePicker? picker,
   })  : _service = service,
-        _picker = picker ?? ImagePicker();
+        _picker = picker ?? ImagePicker(),
+        _photo = photo;
+
+  static const List<int> durationPresets = [15, 30, 45, 60, 90];
 
   final WorkoutService _service;
   final ImagePicker _picker;
   final String userId;
   final String groupId;
 
-  File? _photo;
+  File _photo;
   int _durationMinutes = 30;
-  String _workoutType = 'general';
   bool _busy = false;
   String? _error;
   WorkoutLog? _saved;
 
-  File? get photo => _photo;
+  File get photo => _photo;
   int get durationMinutes => _durationMinutes;
-  String get workoutType => _workoutType;
   bool get busy => _busy;
   String? get error => _error;
-  bool get canSubmit => _photo != null && _durationMinutes > 0 && !_busy;
   WorkoutLog? get saved => _saved;
+  bool get canSubmit => !_busy;
 
-  void setDuration(int minutes) {
-    _durationMinutes = minutes;
+  void cycleDuration() {
+    final i = durationPresets.indexOf(_durationMinutes);
+    _durationMinutes = durationPresets[(i + 1) % durationPresets.length];
     notifyListeners();
   }
 
-  void setType(String type) {
-    _workoutType = type;
-    notifyListeners();
-  }
-
-  Future<void> capturePhoto() async {
+  Future<bool> retake() async {
     final x = await _picker.pickImage(
       source: ImageSource.camera,
       imageQuality: 80,
     );
-    if (x != null) {
-      _photo = File(x.path);
-      notifyListeners();
-    }
+    if (x == null) return false;
+    _photo = File(x.path);
+    notifyListeners();
+    return true;
   }
 
   Future<void> submit() async {
@@ -66,7 +64,7 @@ class LogWorkoutViewModel extends ChangeNotifier {
         userId: userId,
         groupId: groupId,
         durationMinutes: _durationMinutes,
-        workoutType: _workoutType,
+        workoutType: 'workout',
         photo: _photo,
       );
     } catch (e) {
