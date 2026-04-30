@@ -14,22 +14,28 @@ class AppTheme {
     textTheme: CupertinoTextThemeData(
       primaryColor: foreground,
       textStyle: TextStyle(
+        inherit: false,
         fontFamily: '.SF Pro Text',
         color: foreground,
         fontSize: 16,
+        decoration: TextDecoration.none,
       ),
       navTitleTextStyle: TextStyle(
+        inherit: false,
         fontFamily: '.SF Pro Display',
         color: foreground,
         fontSize: 17,
         fontWeight: FontWeight.w600,
+        decoration: TextDecoration.none,
       ),
       navLargeTitleTextStyle: TextStyle(
+        inherit: false,
         fontFamily: '.SF Pro Display',
         color: foreground,
         fontSize: 34,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.5,
+        decoration: TextDecoration.none,
       ),
     ),
   );
