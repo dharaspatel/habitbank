@@ -238,9 +238,11 @@ class _ChallengeCard extends StatelessWidget {
 
 void _openEditChallenge(BuildContext context) {
   final vmRef = context.read<GroupViewModel>();
-  showCupertinoModalPopup<void>(
-    context: context,
-    builder: (_) => _ChallengeEditor(vm: vmRef),
+  Navigator.of(context, rootNavigator: true).push(
+    CupertinoPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => _ChallengeEditor(vm: vmRef),
+    ),
   );
 }
 
@@ -256,70 +258,93 @@ class _ChallengeEditorState extends State<_ChallengeEditor> {
   late GoalType _type = widget.vm.challenge?.goalType ?? GoalType.workouts;
   late int _target = widget.vm.challenge?.goalTarget ?? 4;
   late int _stakeCents = widget.vm.challenge?.stakeCents ?? 100;
+  bool _saving = false;
+
+  bool get _canSave => _stakeCents > 0 && _target > 0 && !_saving;
+
+  Future<void> _save() async {
+    if (!_canSave) return;
+    setState(() => _saving = true);
+    await widget.vm.updateChallenge(
+      type: _type,
+      target: _target,
+      stakeCents: _stakeCents,
+    );
+    if (mounted) Navigator.of(context).pop();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoActionSheet(
-      title: const Text('Group challenge'),
-      message: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CupertinoSegmentedControl<GoalType>(
-            groupValue: _type,
-            onValueChanged: (v) => setState(() => _type = v),
-            children: const {
-              GoalType.workouts: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text('Workouts'),
-              ),
-              GoalType.minutes: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text('Minutes'),
-              ),
-            },
-          ),
-          const SizedBox(height: 12),
-          _StepperRow(
-            label: 'Target',
-            value: _target,
-            step: _type == GoalType.minutes ? 30 : 1,
-            onChange: (v) => setState(() => _target = v),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(left: 4),
-                child: Text('Stake / week'),
-              ),
-              const Spacer(),
-              SizedBox(
-                width: 140,
-                child: MoneyField(
-                  cents: _stakeCents,
-                  onChanged: (v) => setState(() => _stakeCents = v),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        CupertinoActionSheetAction(
-          onPressed: () async {
-            if (_stakeCents <= 0) {
-              return;
-            }
-            await widget.vm.updateChallenge(
-                type: _type, target: _target, stakeCents: _stakeCents);
-            if (context.mounted) Navigator.of(context).pop();
-          },
-          child: const Text('Save'),
+    return CupertinoPageScaffold(
+      backgroundColor: AppTheme.background,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: AppTheme.background,
+        border: null,
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
         ),
-      ],
-      cancelButton: CupertinoActionSheetAction(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
+        middle: const Text('Edit challenge'),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _canSave ? _save : null,
+          child: Text(
+            'Save',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: _canSave ? AppTheme.foreground : AppTheme.muted,
+            ),
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            const SectionHeader('Goal type'),
+            CupertinoSegmentedControl<GoalType>(
+              groupValue: _type,
+              onValueChanged: (v) => setState(() {
+                _type = v;
+                _target = v == GoalType.minutes ? 90 : 4;
+              }),
+              children: const {
+                GoalType.workouts: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: Text('Workouts'),
+                ),
+                GoalType.minutes: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: Text('Minutes'),
+                ),
+              },
+            ),
+            const SectionHeader('Weekly target'),
+            _StepperRow(
+              label: _type == GoalType.minutes ? 'Minutes' : 'Workouts',
+              value: _target,
+              step: _type == GoalType.minutes ? 30 : 1,
+              onChange: (v) => setState(() => _target = v),
+            ),
+            const SectionHeader('Weekly stake'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: MoneyField(
+                cents: _stakeCents,
+                onChanged: (v) => setState(() => _stakeCents = v),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Text(
+                'Each member wins this stake when they hit the goal and '
+                'loses it when they miss.',
+                style: AppTheme.caption,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -340,26 +365,29 @@ class _StepperRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(label),
-        const Spacer(),
-        CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => onChange((value - step).clamp(1, 1000)),
-          child: const Icon(CupertinoIcons.minus_circle),
-        ),
-        SizedBox(
-          width: 56,
-          child: Text('$value',
-              textAlign: TextAlign.center, style: AppTheme.headline),
-        ),
-        CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => onChange((value + step).clamp(1, 1000)),
-          child: const Icon(CupertinoIcons.plus_circle),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Text(label, style: AppTheme.body),
+          const Spacer(),
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: () => onChange((value - step).clamp(1, 1000)),
+            child: const Icon(CupertinoIcons.minus_circle),
+          ),
+          SizedBox(
+            width: 64,
+            child: Text('$value',
+                textAlign: TextAlign.center, style: AppTheme.headline),
+          ),
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: () => onChange((value + step).clamp(1, 1000)),
+            child: const Icon(CupertinoIcons.plus_circle),
+          ),
+        ],
+      ),
     );
   }
 }
