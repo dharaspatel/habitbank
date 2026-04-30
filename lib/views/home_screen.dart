@@ -33,7 +33,13 @@ class _HomeScreenState extends State<HomeScreen> {
       _loaded = true;
       final auth = context.read<AuthViewModel>();
       final vm = context.read<HomeViewModel>();
-      if (auth.userId != null) vm.load(auth.userId!);
+      if (auth.userId != null) {
+        // Defer until after the current build so notifyListeners() doesn't
+        // mark provider scopes dirty during build.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          vm.load(auth.userId!);
+        });
+      }
     }
   }
 

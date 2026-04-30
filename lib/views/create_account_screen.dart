@@ -5,21 +5,22 @@ import '../config/theme.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
-import 'create_account_screen.dart';
 
-class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key});
+class CreateAccountScreen extends StatefulWidget {
+  const CreateAccountScreen({super.key});
 
   @override
-  State<SignInScreen> createState() => _SignInScreenState();
+  State<CreateAccountScreen> createState() => _CreateAccountScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
+class _CreateAccountScreenState extends State<CreateAccountScreen> {
+  final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
 
   @override
   void dispose() {
+    _name.dispose();
     _email.dispose();
     _password.dispose();
     super.dispose();
@@ -30,18 +31,26 @@ class _SignInScreenState extends State<SignInScreen> {
     final vm = context.watch<AuthViewModel>();
     return CupertinoPageScaffold(
       backgroundColor: AppTheme.background,
+      // Default Cupertino back chevron handles "back to sign in".
       navigationBar: const CupertinoNavigationBar(
         backgroundColor: AppTheme.background,
         border: null,
-        middle: Text(''),
+        previousPageTitle: 'Sign in',
+        middle: Text('Create account'),
       ),
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
           children: [
-            Text('Sign in',
+            Text('Create account',
                 style: AppTheme.balanceLarge.copyWith(fontSize: 40)),
             const SizedBox(height: 24),
+            const SectionHeader('Name'),
+            CupertinoTextField(
+              controller: _name,
+              placeholder: 'Your name',
+              padding: const EdgeInsets.all(14),
+            ),
             const SectionHeader('Email'),
             CupertinoTextField(
               controller: _email,
@@ -61,13 +70,14 @@ class _SignInScreenState extends State<SignInScreen> {
             SizedBox(
               width: double.infinity,
               child: PrimaryButton(
-                label: 'Sign in',
+                label: 'Create account',
                 busy: vm.busy,
                 onPressed: vm.busy
                     ? null
-                    : () => vm.signInOrSignUp(
+                    : () => vm.signUp(
                           email: _email.text.trim(),
                           password: _password.text,
+                          name: _name.text.trim(),
                         ),
               ),
             ),
@@ -84,11 +94,8 @@ class _SignInScreenState extends State<SignInScreen> {
             const SizedBox(height: 16),
             Center(
               child: CupertinoButton(
-                onPressed: () => Navigator.of(context).push(
-                  CupertinoPageRoute<void>(
-                      builder: (_) => const CreateAccountScreen()),
-                ),
-                child: const Text('New here? Create account',
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Back to sign in',
                     style: AppTheme.caption),
               ),
             ),

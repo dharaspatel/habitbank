@@ -15,21 +15,30 @@ class OnboardingScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 48, 24, 32),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('HabitBank', style: AppTheme.balanceLarge),
+              const SizedBox(height: 24),
+              const Text(
+                'HabitBank',
+                style: AppTheme.balanceLarge,
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 16),
               Text(
                 'Stake virtual money on your weekly workouts.\n'
                 'Miss your goal, your friends win the pool.',
                 style: AppTheme.body.copyWith(color: AppTheme.muted),
+                textAlign: TextAlign.center,
               ),
               const Spacer(),
-              PrimaryButton(
-                label: 'Get started',
-                onPressed: () => Navigator.of(context).push(
-                  CupertinoPageRoute<void>(
-                    builder: (_) => const SignInScreen(),
+              SizedBox(
+                width: double.infinity,
+                child: PrimaryButton(
+                  label: 'Get started',
+                  onPressed: () => Navigator.of(context).push(
+                    CupertinoPageRoute<void>(
+                      builder: (_) => const SignInScreen(),
+                    ),
                   ),
                 ),
               ),

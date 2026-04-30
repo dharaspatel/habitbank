@@ -35,28 +35,76 @@ class AuthViewModel extends ChangeNotifier {
   bool get busy => _busy;
   String? get userId => _auth.currentUser?.id;
 
-  Future<void> signInEmail(String email, String password) =>
-      _wrap(() => _auth.signInWithEmail(email: email, password: password));
-
-  Future<void> signUpEmail(String email, String password, String name) =>
-      _wrap(() => _auth.signUpWithEmail(
-          email: email, password: password, name: name));
-
-  Future<void> signInApple() => _wrap(() => _auth.signInWithApple());
-
-  Future<void> signOut() => _wrap(() => _auth.signOut());
-
-  Future<void> _wrap(Future<dynamic> Function() op) async {
+  /// Sign in with email/password. If the account does not exist, automatically
+  /// create it with the same credentials. The Supabase response we treat as
+  /// "user not found" is the generic `invalid_credentials` error: we attempt
+  /// signup and only surface a real error if signup also fails.
+  Future<void> signInOrSignUp({
+    required String email,
+    required String password,
+  }) async {
     _busy = true;
     _error = null;
     notifyListeners();
     try {
-      await op();
+      try {
+        await _auth.signInWithEmail(email: email, password: password);
+      } on AuthException catch (e) {
+        if (_looksLikeMissingAccount(e)) {
+          await _auth.signUpWithEmail(email: email, password: password);
+        } else {
+          rethrow;
+        }
+      }
     } catch (e) {
-      _error = e.toString();
+      _error = _friendly(e);
     } finally {
       _busy = false;
       notifyListeners();
     }
+  }
+
+  Future<void> signUp({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
+    _busy = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _auth.signUpWithEmail(
+          email: email, password: password, name: name);
+    } catch (e) {
+      _error = _friendly(e);
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> signOut() async {
+    _busy = true;
+    notifyListeners();
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      _error = _friendly(e);
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  static bool _looksLikeMissingAccount(AuthException e) {
+    final msg = e.message.toLowerCase();
+    return msg.contains('invalid login credentials') ||
+        msg.contains('user not found') ||
+        msg.contains('invalid_credentials');
+  }
+
+  static String _friendly(Object e) {
+    if (e is AuthException) return e.message;
+    return e.toString();
   }
 }
