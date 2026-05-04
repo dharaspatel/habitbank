@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/group.dart';
-import '../services/group_service.dart' show GroupService, InvalidInviteCodeException;
+import '../services/group_service.dart'
+    show GroupFullException, GroupService, InvalidInviteCodeException;
 
 class JoinGroupViewModel extends ChangeNotifier {
   JoinGroupViewModel(this._service, this.userId);
@@ -30,6 +31,8 @@ class JoinGroupViewModel extends ChangeNotifier {
           code: code.trim(), userId: userId);
     } on InvalidInviteCodeException {
       _error = 'No group with that code.';
+    } on GroupFullException {
+      _error = 'That group is full (max 7 members).';
     } catch (e) {
       _error = 'Could not join — try again.';
     } finally {

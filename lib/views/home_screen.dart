@@ -14,6 +14,7 @@ import '../widgets/app_card.dart';
 import '../widgets/habit_grid.dart';
 import '../widgets/money_field.dart';
 import '../widgets/section.dart';
+import '../widgets/total_balance_card.dart';
 import 'create_account_screen.dart';
 import 'create_group_screen.dart';
 import 'group_detail_screen.dart';
@@ -92,31 +93,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (auth.userId != null) await vm.load(auth.userId!);
               },
             ),
+            const SliverToBoxAdapter(child: SizedBox(height: 20)),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Total balance', style: AppTheme.caption),
-                    const SizedBox(height: 4),
-                    Text(_formatSignedMoney(vm.totalBalance),
-                        style: AppTheme.balanceLarge),
-                    const SizedBox(height: 6),
-                    _TrendPill(change: vm.weekOverWeekChange),
-                  ],
+                child: TotalBalanceCard(
+                  balanceCents: vm.totalBalance,
+                  weekOverWeekChange: vm.weekOverWeekChange,
                 ),
               ),
             ),
             const SliverToBoxAdapter(child: SectionHeader('Your groups')),
             if (vm.loading && vm.groups.isEmpty)
               const SliverFillRemaining(
+                key: ValueKey('groups-loading'),
                 child: Center(child: CupertinoActivityIndicator()),
               )
             else if (vm.groups.isEmpty)
-              SliverToBoxAdapter(child: _emptyState(context))
+              SliverToBoxAdapter(
+                key: const ValueKey('groups-empty'),
+                child: _emptyState(context),
+              )
             else
               SliverPadding(
+                key: const ValueKey('groups-list'),
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 sliver: SliverList.separated(
                   itemCount: vm.groups.length,
@@ -132,8 +132,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             if (vm.userLogs.isNotEmpty || !vm.loading) ...[
-              const SliverToBoxAdapter(child: SectionHeader('Your habit')),
+              const SliverToBoxAdapter(
+                key: ValueKey('habit-header'),
+                child: SectionHeader('Your habit'),
+              ),
               SliverToBoxAdapter(
+                key: const ValueKey('habit-card'),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
                   child: AppCard(
@@ -153,12 +157,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        FittedBox(
-                          alignment: Alignment.centerLeft,
-                          child: HabitGrid(
-                            loggedAt:
-                                vm.userLogs.map((l) => l.loggedAt).toList(),
-                          ),
+                        HabitGrid(
+                          loggedAt:
+                              vm.userLogs.map((l) => l.loggedAt).toList(),
                         ),
                       ],
                     ),
@@ -247,41 +248,6 @@ class _HomeScreenState extends State<HomeScreen> {
 String _formatSignedMoney(int cents) {
   final abs = formatCents(cents.abs());
   return cents < 0 ? '−$abs' : abs;
-}
-
-/// Small trend chip rendered just under the balance: shows "▲N%" /
-/// "▼N%" / "—" based on the week-over-week change in workouts logged.
-class _TrendPill extends StatelessWidget {
-  const _TrendPill({required this.change});
-  final double? change;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = change;
-    final IconData icon;
-    final String label;
-    if (c == null) {
-      icon = CupertinoIcons.minus;
-      label = 'no data yet';
-    } else if (c > 0) {
-      icon = CupertinoIcons.arrow_up_right;
-      label = '${(c * 100).round()}% vs last week';
-    } else if (c < 0) {
-      icon = CupertinoIcons.arrow_down_right;
-      label = '${(c * 100).abs().round()}% vs last week';
-    } else {
-      icon = CupertinoIcons.minus;
-      label = 'flat vs last week';
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: AppTheme.muted),
-        const SizedBox(width: 4),
-        Text(label, style: AppTheme.caption),
-      ],
-    );
-  }
 }
 
 class _GroupTile extends StatelessWidget {

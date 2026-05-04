@@ -12,13 +12,11 @@ class HabitGrid extends StatelessWidget {
     super.key,
     required this.loggedAt,
     this.weeks = 12,
-    this.cell = 16,
     this.gap = 4,
   });
 
   final List<DateTime> loggedAt;
   final int weeks;
-  final double cell;
   final double gap;
 
   @override
@@ -42,44 +40,53 @@ class HabitGrid extends StatelessWidget {
       counts.update(key(day), (v) => v + 1, ifAbsent: () => 1);
     }
 
-    Widget cellFor(DateTime day) {
-      final inFuture = day.isAfter(endDay);
-      final c = inFuture ? -1 : (counts[key(day)] ?? 0);
-      return Container(
-        width: cell,
-        height: cell,
-        decoration: BoxDecoration(
-          color: _shade(c),
-          borderRadius: BorderRadius.circular(3),
-        ),
-      );
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 7 * 16.0 + 6 * gap;
+        final cell = ((width - (weeks - 1) * gap) / weeks).clamp(2.0, 64.0);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: List.generate(7, (row) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: row == 6 ? 0 : gap),
-          child: Row(
-            children: List.generate(weeks, (col) {
-              final day =
-                  firstMonday.add(Duration(days: col * 7 + row));
-              return Padding(
-                padding: EdgeInsets.only(right: col == weeks - 1 ? 0 : gap),
-                child: cellFor(day),
-              );
-            }),
-          ),
+        Widget cellFor(DateTime day) {
+          final inFuture = day.isAfter(endDay);
+          final c = inFuture ? -1 : (counts[key(day)] ?? 0);
+          return Container(
+            width: cell,
+            height: cell,
+            decoration: BoxDecoration(
+              color: _shade(c),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: List.generate(7, (row) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: row == 6 ? 0 : gap),
+              child: Row(
+                children: List.generate(weeks, (col) {
+                  final day = firstMonday.add(Duration(days: col * 7 + row));
+                  return Padding(
+                    padding:
+                        EdgeInsets.only(right: col == weeks - 1 ? 0 : gap),
+                    child: cellFor(day),
+                  );
+                }),
+              ),
+            );
+          }),
         );
-      }),
+      },
     );
   }
 
   static Color _shade(int count) {
     if (count < 0) return AppTheme.background; // future day
     if (count == 0) return AppTheme.subtle;
-    if (count == 1) return const Color(0xFFB5B5B5);
-    if (count == 2) return const Color(0xFF6E6E6E);
-    return AppTheme.foreground;
+    if (count == 1) return const Color(0xFFB7EDDB); // green-100
+    if (count == 2) return const Color(0xFF4FCFA6); // green-300
+    return const Color(0xFF06D6A0); // green-500 (matches progress ring)
   }
 }

@@ -67,30 +67,47 @@ export function settleGroup(args: {
     totals.set(log.user_id, t);
   }
 
-  // Each member individually wins or loses the week's stake.
+  // Pool model: every member contributes `stake`; hitters split the entire
+  // pool evenly, losers' delta is 0. If everyone misses, the member closest
+  // to the goal wins the whole pool so the money still goes to someone.
   const winners: string[] = [];
   const losers: string[] = [];
-  const deltas: Record<string, number> = {};
+  const scores: Record<string, number> = {};
   const stake = args.challenge.stake_cents;
+  const pool = stake * args.memberIds.length;
 
   for (const userId of args.memberIds) {
     const t = totals.get(userId) ?? { workouts: 0, minutes: 0 };
     const score =
       args.challenge.goal_type === "workouts" ? t.workouts : t.minutes;
+    scores[userId] = score;
     if (score >= args.challenge.goal_target) {
       winners.push(userId);
-      deltas[userId] = stake;
     } else {
       losers.push(userId);
-      deltas[userId] = -stake;
     }
+  }
+
+  if (winners.length === 0 && losers.length > 0) {
+    let closest = losers[0];
+    for (const userId of losers) {
+      if (scores[userId] > scores[closest]) closest = userId;
+    }
+    losers.splice(losers.indexOf(closest), 1);
+    winners.push(closest);
+  }
+
+  const perWinner = winners.length === 0 ? 0 : Math.floor(pool / winners.length);
+  const deltas: Record<string, number> = {};
+  for (const userId of args.memberIds) {
+    deltas[userId] = winners.includes(userId) ? perWinner : 0;
   }
 
   return {
     winners,
     losers,
-    pool: stake * args.memberIds.length,
-    perWinner: stake,
+    pool,
+    perWinner,
     deltas,
   };
 }

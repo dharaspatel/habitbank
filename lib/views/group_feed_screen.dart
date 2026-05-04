@@ -5,6 +5,7 @@ import '../config/theme.dart';
 import '../models/group_member.dart';
 import '../models/workout_log.dart';
 import '../widgets/app_card.dart';
+import '../widgets/shimmer.dart';
 
 /// Full-screen activity feed for a group. Receives an already-loaded list
 /// of [logs] + [members] from [GroupViewModel] so this screen never refetches
@@ -15,11 +16,13 @@ class GroupFeedScreen extends StatelessWidget {
     required this.groupName,
     required this.logs,
     required this.members,
+    this.onLogWorkout,
   });
 
   final String groupName;
   final List<WorkoutLog> logs;
   final List<GroupMember> members;
+  final VoidCallback? onLogWorkout;
 
   String _nameFor(String userId) {
     for (final m in members) {
@@ -39,6 +42,14 @@ class GroupFeedScreen extends StatelessWidget {
         border: null,
         previousPageTitle: groupName,
         middle: const Text('Feed'),
+        trailing: onLogWorkout == null
+            ? null
+            : CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: onLogWorkout,
+                child: const Icon(CupertinoIcons.add,
+                    color: AppTheme.foreground),
+              ),
       ),
       child: SafeArea(
         child: logs.isEmpty
@@ -91,7 +102,20 @@ class _FeedCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: AspectRatio(
                 aspectRatio: 1,
-                child: Image.network(log.photoUrl!, fit: BoxFit.cover),
+                child: Image.network(
+                  log.photoUrl!,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return const Shimmer();
+                  },
+                  errorBuilder: (_, __, ___) => Container(
+                    color: AppTheme.subtle,
+                    alignment: Alignment.center,
+                    child: const Icon(CupertinoIcons.photo,
+                        color: AppTheme.muted),
+                  ),
+                ),
               ),
             )
           else

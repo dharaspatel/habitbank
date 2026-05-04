@@ -37,11 +37,13 @@ class SettlementOutcome {
 }
 
 class SettlementEngine {
-  /// Each member individually wins or loses the week's stake:
-  ///   hit goal  →  delta = +stake
-  ///   miss goal →  delta = -stake
-  /// `pool` reports the total amount at risk this week (members × stake);
-  /// `perWinner` is just the stake (every winner gets exactly +stake).
+  /// Pool model: every member notionally puts `stake` into the pot
+  /// (`pool = stake * memberCount`) and the hitters split the entire pot
+  /// evenly — losers' delta is 0 (their stake funded the pot but balances
+  /// only track winnings, never go negative). If *every* member misses,
+  /// the member with the highest score (ties broken by member order) wins
+  /// the whole pool so the money never disappears.
+  /// `perWinner = pool ~/ winnersCount` (any cent remainder is dropped).
   static SettlementOutcome settle(SettlementInput input) {
     final totals = <String, _Totals>{};
     for (final log in input.logs) {
@@ -52,28 +54,43 @@ class SettlementEngine {
 
     final winners = <String>[];
     final losers = <String>[];
-    final deltas = <String, int>{};
+    final scores = <String, int>{};
     final stake = input.challenge.stakeCents;
+    final pool = stake * input.memberIds.length;
 
     for (final userId in input.memberIds) {
       final t = totals[userId] ?? _Totals();
       final score = input.challenge.goalType == GoalType.workouts
           ? t.workouts
           : t.minutes;
+      scores[userId] = score;
       if (score >= input.challenge.goalTarget) {
         winners.add(userId);
-        deltas[userId] = stake;
       } else {
         losers.add(userId);
-        deltas[userId] = -stake;
       }
     }
+
+    if (winners.isEmpty && losers.isNotEmpty) {
+      String closest = losers.first;
+      for (final userId in losers) {
+        if (scores[userId]! > scores[closest]!) closest = userId;
+      }
+      losers.remove(closest);
+      winners.add(closest);
+    }
+
+    final perWinner = winners.isEmpty ? 0 : pool ~/ winners.length;
+    final deltas = <String, int>{
+      for (final userId in input.memberIds)
+        userId: winners.contains(userId) ? perWinner : 0,
+    };
 
     return SettlementOutcome(
       winners: winners,
       losers: losers,
-      pool: stake * input.memberIds.length,
-      perWinner: stake,
+      pool: pool,
+      perWinner: perWinner,
       deltas: deltas,
     );
   }

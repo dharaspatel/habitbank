@@ -4,6 +4,7 @@ import '../models/balance.dart';
 import '../models/challenge.dart';
 import '../models/group.dart';
 import '../models/group_member.dart';
+import '../models/weekly_result.dart';
 import '../models/workout_log.dart';
 import '../services/group_service.dart';
 import '../services/settlement_engine.dart';
@@ -28,6 +29,7 @@ class GroupViewModel extends ChangeNotifier {
   List<GroupMember> _members = const [];
   List<WorkoutLog> _logs = const [];
   List<Balance> _balances = const [];
+  List<WeeklyResult> _weeklyResults = const [];
   Challenge? _challenge;
 
   bool get loading => _loading;
@@ -35,8 +37,29 @@ class GroupViewModel extends ChangeNotifier {
   List<GroupMember> get members => _members;
   List<WorkoutLog> get logs => _logs;
   List<Balance> get balances => _balances;
+  List<WeeklyResult> get weeklyResults => _weeklyResults;
   Challenge? get challenge => _challenge;
   bool get isOwner => group.ownerId == currentUserId;
+
+  /// What this week's settlement would award each member if the week ended
+  /// right now. Mirrors [SettlementEngine.settle] on the in-progress logs so
+  /// the UI can preview projected pool shares.
+  Map<String, int> get projectedDeltas {
+    final c = _challenge;
+    if (c == null || _members.isEmpty) return const {};
+    final week = currentIsoWeekUtc(DateTime.now().toUtc());
+    final thisWeek = _logs
+        .where((l) =>
+            l.loggedAt.toUtc().isAfter(week.start) &&
+            l.loggedAt.toUtc().isBefore(week.end))
+        .toList();
+    final out = SettlementEngine.settle(SettlementInput(
+      challenge: c,
+      memberIds: _members.map((m) => m.userId).toList(),
+      logs: thisWeek,
+    ));
+    return out.deltas;
+  }
 
   int progressForUser(String userId) {
     final c = _challenge;
@@ -60,6 +83,7 @@ class GroupViewModel extends ChangeNotifier {
       _members = await _groupService.listMembers(group.id);
       _logs = await _workoutService.listForGroup(group.id);
       _balances = await _groupService.listBalances(group.id);
+      _weeklyResults = await _groupService.listWeeklyResults(group.id);
       _challenge = await _groupService.getChallenge(group.id);
     } catch (e) {
       _error = e.toString();

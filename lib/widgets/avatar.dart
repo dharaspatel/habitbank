@@ -24,9 +24,15 @@ class AvatarCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Outer dimension is always [size] — when a ring is present, the inner
+    // disc shrinks to fit so callers can lay out by [size] alone.
+    final hasRing = ringColor != null;
+    final ringInset = hasRing ? ringWidth + 1 : 0.0;
+    final innerSize = size - 2 * ringInset;
+
     final inner = Container(
-      width: size,
-      height: size,
+      width: innerSize,
+      height: innerSize,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: AppTheme.subtle,
@@ -46,7 +52,7 @@ class AvatarCircle extends StatelessWidget {
               style: TextStyle(
                 inherit: false,
                 color: AppTheme.muted,
-                fontSize: size * 0.45,
+                fontSize: innerSize * 0.45,
                 fontWeight: FontWeight.w600,
                 fontFamily: '.SF Pro Display',
                 decoration: TextDecoration.none,
@@ -54,13 +60,15 @@ class AvatarCircle extends StatelessWidget {
             )
           : null,
     );
-    if (ringColor == null) return inner;
+    if (!hasRing) return inner;
     return Container(
-      padding: EdgeInsets.all(ringWidth + 1),
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: ringColor!, width: ringWidth),
       ),
+      alignment: Alignment.center,
       child: inner,
     );
   }
@@ -85,18 +93,23 @@ class AvatarStack extends StatelessWidget {
     final visible = avatars.take(maxVisible).toList();
     final overflow = avatars.length - visible.length;
     final overlap = size * 0.35;
+    final step = size - overlap;
+    final slots = visible.length + (overflow > 0 ? 1 : 0);
+    final width = slots == 0 ? 0.0 : (slots - 1) * step + size;
     return SizedBox(
-      height: size + 8,
+      width: width,
+      height: size,
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           for (var i = 0; i < visible.length; i++)
             Positioned(
-              left: i * (size - overlap),
+              left: i * step,
               child: visible[i],
             ),
           if (overflow > 0)
             Positioned(
-              left: visible.length * (size - overlap),
+              left: visible.length * step,
               child: Container(
                 width: size,
                 height: size,

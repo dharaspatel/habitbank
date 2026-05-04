@@ -63,17 +63,31 @@ class SecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoButton(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      color: AppTheme.background,
-      borderRadius: BorderRadius.circular(12),
-      onPressed: onPressed,
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AppTheme.foreground,
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
+    return SizedBox(
+      width: double.infinity,
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        borderRadius: BorderRadius.circular(12),
+        onPressed: onPressed,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: AppTheme.foreground,
+              width: 2.0,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.foreground,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ),
     );

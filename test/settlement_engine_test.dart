@@ -33,8 +33,8 @@ WorkoutLog log({
 }
 
 void main() {
-  group('SettlementEngine.settle (binary +stake / -stake per member)', () {
-    test('hitters gain stake, missers lose stake', () {
+  group('SettlementEngine.settle (pool model: hitters split the pot)', () {
+    test('hitters split pool evenly, losers get nothing', () {
       final out = SettlementEngine.settle(SettlementInput(
         challenge: groupChallenge(target: 3, stake: 100),
         memberIds: ['a', 'b', 'c'],
@@ -46,23 +46,12 @@ void main() {
       ));
       expect(out.winners, ['a', 'b']);
       expect(out.losers, ['c']);
-      expect(out.deltas, {'a': 100, 'b': 100, 'c': -100});
-      expect(out.perWinner, 100);
-      expect(out.pool, 300); // 3 members × 100c at risk
+      expect(out.pool, 300); // 3 × 100
+      expect(out.perWinner, 150); // 300 ~/ 2
+      expect(out.deltas, {'a': 150, 'b': 150, 'c': 0});
     });
 
-    test('all miss => everyone -stake', () {
-      final out = SettlementEngine.settle(SettlementInput(
-        challenge: groupChallenge(target: 5, stake: 100),
-        memberIds: ['a', 'b'],
-        logs: [log(userId: 'a'), log(userId: 'b')],
-      ));
-      expect(out.winners, isEmpty);
-      expect(out.losers, ['a', 'b']);
-      expect(out.deltas, {'a': -100, 'b': -100});
-    });
-
-    test('all hit => everyone +stake', () {
+    test('all hit => pool split evenly, each gets their own stake back', () {
       final out = SettlementEngine.settle(SettlementInput(
         challenge: groupChallenge(target: 1, stake: 100),
         memberIds: ['a', 'b'],
@@ -70,7 +59,57 @@ void main() {
       ));
       expect(out.winners, ['a', 'b']);
       expect(out.losers, isEmpty);
+      expect(out.pool, 200);
+      expect(out.perWinner, 100);
       expect(out.deltas, {'a': 100, 'b': 100});
+    });
+
+    test('only one hitter takes the whole pool', () {
+      final out = SettlementEngine.settle(SettlementInput(
+        challenge: groupChallenge(target: 1, stake: 100),
+        memberIds: ['a', 'b'],
+        logs: [log(userId: 'a')],
+      ));
+      expect(out.winners, ['a']);
+      expect(out.losers, ['b']);
+      expect(out.deltas, {'a': 200, 'b': 0});
+    });
+
+    test('all miss => closest to goal wins the whole pool', () {
+      final out = SettlementEngine.settle(SettlementInput(
+        challenge: groupChallenge(target: 5, stake: 100),
+        memberIds: ['a', 'b', 'c'],
+        logs: [
+          log(userId: 'a'),
+          log(userId: 'b'), log(userId: 'b'), log(userId: 'b'),
+          log(userId: 'c'), log(userId: 'c'),
+        ],
+      ));
+      expect(out.winners, ['b']);
+      expect(out.losers, ['a', 'c']);
+      expect(out.deltas, {'a': 0, 'b': 300, 'c': 0});
+    });
+
+    test('all miss with a tie => earliest member in order wins', () {
+      final out = SettlementEngine.settle(SettlementInput(
+        challenge: groupChallenge(target: 5, stake: 100),
+        memberIds: ['a', 'b'],
+        logs: [log(userId: 'a'), log(userId: 'b')],
+      ));
+      expect(out.winners, ['a']);
+      expect(out.losers, ['b']);
+      expect(out.deltas, {'a': 200, 'b': 0});
+    });
+
+    test('odd cents in the pool floor to the winners (remainder burns)', () {
+      final out = SettlementEngine.settle(SettlementInput(
+        challenge: groupChallenge(target: 1, stake: 100),
+        memberIds: ['a', 'b', 'c'],
+        logs: [log(userId: 'a'), log(userId: 'b'), log(userId: 'c')],
+      ));
+      expect(out.pool, 300);
+      expect(out.perWinner, 100); // 300 ~/ 3
+      expect(out.deltas.values.fold<int>(0, (a, b) => a + b), 300);
     });
 
     test('minutes goal sums durations across the week', () {
@@ -86,10 +125,10 @@ void main() {
       ));
       expect(out.winners, ['a']);
       expect(out.losers, ['b']);
-      expect(out.deltas, {'a': 250, 'b': -250});
+      expect(out.deltas, {'a': 500, 'b': 0});
     });
 
-    test('member with no logs is treated as a loser', () {
+    test('member with no logs gets nothing', () {
       final out = SettlementEngine.settle(SettlementInput(
         challenge: groupChallenge(target: 1, stake: 100),
         memberIds: ['a', 'silent'],
@@ -97,7 +136,7 @@ void main() {
       ));
       expect(out.winners, ['a']);
       expect(out.losers, ['silent']);
-      expect(out.deltas, {'a': 100, 'silent': -100});
+      expect(out.deltas, {'a': 200, 'silent': 0});
     });
   });
 

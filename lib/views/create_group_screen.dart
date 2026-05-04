@@ -7,6 +7,7 @@ import '../services/group_service.dart';
 import '../services/supabase_service.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/create_group_viewmodel.dart';
+import '../widgets/celebrate.dart';
 import '../widgets/money_field.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
@@ -23,6 +24,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   GoalType _goalType = GoalType.workouts;
   int _target = 4;
   int _stakeCents = 100; // $1.00
+  bool _celebrated = false;
 
   @override
   void dispose() {
@@ -38,8 +40,11 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           GroupService(SupabaseService.client), auth.userId!),
       child: Consumer<CreateGroupViewModel>(
         builder: (context, vm, _) {
-          if (vm.created != null) {
+          if (vm.created != null && !_celebrated) {
+            _celebrated = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              Celebrate.fire(context, big: true);
               if (Navigator.of(context).canPop()) Navigator.of(context).pop();
             });
           }
@@ -96,8 +101,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                       onChanged: (v) => setState(() => _stakeCents = v),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
                     child: Text(
                       'Each member puts in this much per week. Members who '
                       'miss the goal forfeit it to those who hit it.',

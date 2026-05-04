@@ -76,7 +76,7 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8
       ..strokeCap = StrokeCap.round
-      ..color = AppTheme.foreground;
+      ..color = const Color(0xFF06D6A0);
 
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 4;

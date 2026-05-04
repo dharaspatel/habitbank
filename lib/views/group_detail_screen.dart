@@ -1,27 +1,30 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../config/member_palette.dart';
 import '../config/theme.dart';
 import '../models/challenge.dart';
-import '../services/group_service.dart';
+import '../models/weekly_result.dart';
 import '../services/supabase_service.dart';
 import '../services/workout_service.dart';
 import '../viewmodels/group_viewmodel.dart';
 import '../viewmodels/log_workout_viewmodel.dart';
-import '../viewmodels/weekly_results_viewmodel.dart';
 import '../widgets/app_card.dart';
 import '../widgets/avatar.dart';
+import '../widgets/celebrate.dart';
+import '../widgets/pool_bar.dart';
 import '../widgets/money_field.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
 import '../widgets/week_progress_ring.dart';
 import 'group_feed_screen.dart';
 import 'log_workout_screen.dart';
-import 'weekly_results_screen.dart';
 
 class GroupDetailScreen extends StatelessWidget {
   const GroupDetailScreen({super.key});
@@ -44,24 +47,6 @@ class GroupDetailScreen extends StatelessWidget {
                   const Icon(CupertinoIcons.share, color: AppTheme.foreground),
               onPressed: () => _showInviteSheet(context, vm),
             ),
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              child: const Icon(CupertinoIcons.chart_bar,
-                  color: AppTheme.foreground),
-              onPressed: () {
-                Navigator.of(context).push(
-                  CupertinoPageRoute<void>(
-                    builder: (_) => ChangeNotifierProvider(
-                      create: (_) => WeeklyResultsViewModel(
-                        GroupService(SupabaseService.client),
-                        vm.group.id,
-                      )..load(),
-                      child: const WeeklyResultsScreen(),
-                    ),
-                  ),
-                );
-              },
-            ),
             if (vm.isOwner)
               CupertinoButton(
                 padding: EdgeInsets.zero,
@@ -72,68 +57,101 @@ class GroupDetailScreen extends StatelessWidget {
           ],
         ),
       ),
-      child: SafeArea(
-        child: Stack(
-          children: [
-            CustomScrollView(
-              slivers: [
-                CupertinoSliverRefreshControl(onRefresh: vm.load),
-                SliverToBoxAdapter(child: _MembersHero(vm: vm)),
-                SliverToBoxAdapter(child: _ChallengeRing(vm: vm)),
-                SliverToBoxAdapter(child: _PotentialLossCard(vm: vm)),
-                const SliverToBoxAdapter(child: SectionHeader('Members')),
+      child: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              CupertinoSliverRefreshControl(onRefresh: vm.load),
+              SliverSafeArea(
+                bottom: false,
+                sliver: SliverToBoxAdapter(child: _MembersHero(vm: vm)),
+              ),
+              SliverToBoxAdapter(child: _ChallengeRing(vm: vm)),
+              SliverToBoxAdapter(
+                child: PoolBar(
+                  members: vm.members,
+                  balances: vm.balances,
+                  projectedDeltas: vm.projectedDeltas,
+                ),
+              ),
+              SliverToBoxAdapter(child: _PotentialLossCard(vm: vm)),
+              const SliverToBoxAdapter(child: SectionHeader('Members')),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                sliver: SliverList.separated(
+                  itemCount: vm.members.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final m = vm.members[i];
+                    final progress = vm.progressForUser(m.userId);
+                    final goal = vm.challenge?.goalTarget;
+                    return _MemberCard(
+                      name:
+                          m.profile.name.isEmpty ? 'Member' : m.profile.name,
+                      photoUrl: m.profile.photoUrl,
+                      progress: progress,
+                      goal: goal,
+                    );
+                  },
+                ),
+              ),
+              if (vm.weeklyResults.isNotEmpty) ...[
+                const SliverToBoxAdapter(
+                  key: ValueKey('analytics-header'),
+                  child: SectionHeader('Weekly results'),
+                ),
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   sliver: SliverList.separated(
-                    itemCount: vm.members.length,
+                    itemCount: vm.weeklyResults.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) {
-                      final m = vm.members[i];
-                      final progress = vm.progressForUser(m.userId);
-                      final goal = vm.challenge?.goalTarget;
-                      return _MemberCard(
-                        name:
-                            m.profile.name.isEmpty ? 'Member' : m.profile.name,
-                        photoUrl: m.profile.photoUrl,
-                        progress: progress,
-                        goal: goal,
-                      );
-                    },
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 96),
-                    child: Center(
-                      child: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: () => _openFeed(context),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('See feed', style: AppTheme.body),
-                            const SizedBox(width: 4),
-                            const Icon(CupertinoIcons.chevron_right,
-                                size: 16, color: AppTheme.foreground),
-                          ],
-                        ),
-                      ),
-                    ),
+                    itemBuilder: (_, i) =>
+                        _WeeklyResultCard(result: vm.weeklyResults[i]),
                   ),
                 ),
               ],
-            ),
-            Positioned(
-              left: 24,
-              right: 24,
-              bottom: 16,
-              child: PrimaryButton(
-                label: 'Log workout',
-                onPressed: () => _openLog(context),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 160 + MediaQuery.of(context).padding.bottom,
+                ),
+              ),
+            ],
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Container(
+                  color: AppTheme.background.withValues(alpha: 0.2),
+                  padding: EdgeInsets.fromLTRB(
+                    24,
+                    12,
+                    24,
+                    16 + MediaQuery.of(context).padding.bottom,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SecondaryButton(
+                        label: 'See feed',
+                        onPressed: () => _openFeed(context),
+                      ),
+                      const SizedBox(height: 5),
+                      PrimaryButton(
+                        label: 'Log workout',
+                        onPressed: () => _openLog(context),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -169,10 +187,11 @@ class GroupDetailScreen extends StatelessWidget {
     final vm = context.read<GroupViewModel>();
     Navigator.of(context).push(
       CupertinoPageRoute<void>(
-        builder: (_) => GroupFeedScreen(
+        builder: (feedContext) => GroupFeedScreen(
           groupName: vm.group.name,
           logs: vm.logs,
           members: vm.members,
+          onLogWorkout: () => _openLog(context),
         ),
       ),
     );
@@ -223,14 +242,13 @@ class _MembersHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final goal = vm.challenge?.goalTarget ?? 0;
     final avatars = [
       for (final m in vm.members)
         AvatarCircle(
           size: 44,
           photoUrl: m.profile.photoUrl,
           initial: m.profile.name.isNotEmpty ? m.profile.name : '·',
-          ringColor: _ringFor(vm.progressForUser(m.userId), goal),
+          ringColor: colorForUserId(m.userId),
           ringWidth: 2,
         ),
     ];
@@ -238,12 +256,6 @@ class _MembersHero extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
       child: Center(child: AvatarStack(avatars: avatars, size: 44)),
     );
-  }
-
-  static Color _ringFor(int progress, int goal) {
-    if (goal <= 0) return AppTheme.subtle;
-    if (progress >= goal) return AppTheme.foreground;
-    return AppTheme.subtle;
   }
 }
 
@@ -354,7 +366,9 @@ class _ChallengeEditorState extends State<_ChallengeEditor> {
       target: _target,
       stakeCents: _stakeCents,
     );
-    if (mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+    Celebrate.fire(context);
+    Navigator.of(context).pop();
   }
 
   @override
@@ -419,8 +433,8 @@ class _ChallengeEditorState extends State<_ChallengeEditor> {
                 onChanged: (v) => setState(() => _stakeCents = v),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Text(
                 'Each member wins this stake when they hit the goal and '
                 'loses it when they miss.',
@@ -469,6 +483,42 @@ class _StepperRow extends StatelessWidget {
             padding: EdgeInsets.zero,
             onPressed: () => onChange((value + step).clamp(1, 1000)),
             child: const Icon(CupertinoIcons.plus_circle),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyResultCard extends StatelessWidget {
+  const _WeeklyResultCard({required this.result});
+  final WeeklyResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final df = DateFormat.MMMd();
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${df.format(result.weekStart)} – ${df.format(result.weekEnd)}',
+                style: AppTheme.body
+                    .copyWith(fontWeight: FontWeight.w600),
+              ),
+              Text(formatCents(result.poolAmount), style: AppTheme.headline),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${result.winners.length} won '
+            '(+${formatCents(result.perWinner)} each) • '
+            '${result.losers.length} missed',
+            style: AppTheme.caption,
           ),
         ],
       ),

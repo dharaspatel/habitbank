@@ -3,16 +3,27 @@ import 'package:provider/provider.dart';
 
 import '../config/theme.dart';
 import '../viewmodels/log_workout_viewmodel.dart';
+import '../widgets/celebrate.dart';
 import '../widgets/primary_button.dart';
 
-class LogWorkoutScreen extends StatelessWidget {
+class LogWorkoutScreen extends StatefulWidget {
   const LogWorkoutScreen({super.key});
+
+  @override
+  State<LogWorkoutScreen> createState() => _LogWorkoutScreenState();
+}
+
+class _LogWorkoutScreenState extends State<LogWorkoutScreen> {
+  bool _celebrated = false;
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<LogWorkoutViewModel>();
-    if (vm.saved != null) {
+    if (vm.saved != null && !_celebrated) {
+      _celebrated = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Celebrate.fire(context);
         if (Navigator.of(context).canPop()) Navigator.of(context).pop();
       });
     }
@@ -40,26 +51,25 @@ class LogWorkoutScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: vm.busy
+              SizedBox(
+                width: double.infinity,
+                child: SecondaryButton(
+                  label: 'Retake',
+                  onPressed: vm.busy
                         ? null
                         : () async {
                             await vm.retake();
                           },
-                    child: const Text('Retake', style: AppTheme.caption),
-                  ),
-                  const Spacer(),
-                  if (vm.tracksMinutes)
-                    _DurationPill(
-                      value: vm.durationMinutes,
-                      onTap: vm.busy ? null : vm.cycleDuration,
-                    ),
-                ],
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 5),
+              if (vm.tracksMinutes)
+                _DurationPill(
+                  value: vm.durationMinutes,
+                  onTap: vm.busy ? null : vm.cycleDuration,
+                ),
+              if (vm.tracksMinutes)
+                const SizedBox(height: 5),
               SizedBox(
                 width: double.infinity,
                 child: PrimaryButton(

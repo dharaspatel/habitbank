@@ -6,6 +6,7 @@ import '../services/group_service.dart';
 import '../services/supabase_service.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/join_group_viewmodel.dart';
+import '../widgets/celebrate.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/section.dart';
 
@@ -18,6 +19,7 @@ class JoinGroupScreen extends StatefulWidget {
 
 class _JoinGroupScreenState extends State<JoinGroupScreen> {
   final _code = TextEditingController();
+  bool _celebrated = false;
 
   @override
   void dispose() {
@@ -33,8 +35,11 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
           JoinGroupViewModel(GroupService(SupabaseService.client), auth.userId!),
       child: Consumer<JoinGroupViewModel>(
         builder: (context, vm, _) {
-          if (vm.joined != null) {
+          if (vm.joined != null && !_celebrated) {
+            _celebrated = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              Celebrate.fire(context);
               if (Navigator.of(context).canPop()) Navigator.of(context).pop();
             });
           }

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter analyze *)",
+      "Bash(flutter test *)",
+      "Bash(flutter pub *)",
+      "Bash(git stash *)",
+      "mcp__fa226f44-9f60-43e8-9a5e-c8fd2d4858fb__list_projects",
+      "mcp__fa226f44-9f60-43e8-9a5e-c8fd2d4858fb__apply_migration"
+    ]
+  }
+}

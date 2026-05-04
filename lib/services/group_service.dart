@@ -59,12 +59,21 @@ class GroupService {
   }) async {
     // Calls a SECURITY DEFINER RPC so we can look up a group we're not yet
     // a member of (RLS hides those from a regular select). The RPC also
-    // inserts the membership atomically.
-    final res = await _client.rpc(
-      'join_group_by_invite',
-      params: {'p_code': code.trim().toUpperCase()},
-    );
-    final list = (res as List?) ?? const [];
+    // inserts the membership atomically and rejects with `GROUP_FULL` once
+    // the group has reached the 7-member cap.
+    final List<dynamic> list;
+    try {
+      final res = await _client.rpc(
+        'join_group_by_invite',
+        params: {'p_code': code.trim().toUpperCase()},
+      );
+      list = (res as List?) ?? const [];
+    } on PostgrestException catch (e) {
+      if (e.message.contains('GROUP_FULL')) {
+        throw const GroupFullException();
+      }
+      rethrow;
+    }
     if (list.isEmpty) {
       throw const InvalidInviteCodeException();
     }
@@ -133,6 +142,10 @@ class GroupService {
         .map((r) => WeeklyResult.fromMap(r as Map<String, dynamic>))
         .toList();
   }
+}
+
+class GroupFullException implements Exception {
+  const GroupFullException();
 }
 
 class InvalidInviteCodeException implements Exception {

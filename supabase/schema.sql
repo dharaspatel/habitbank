@@ -171,7 +171,9 @@ language plpgsql security definer
 set search_path = public
 as $$
 declare
-  g public.groups%rowtype;
+  g           public.groups%rowtype;
+  member_cnt  integer;
+  already     boolean;
 begin
   select * into g from public.groups
    where invite_code = upper(p_code)
@@ -179,9 +181,22 @@ begin
   if not found then
     return;
   end if;
-  insert into public.group_members (group_id, user_id)
-       values (g.id, auth.uid())
-  on conflict do nothing;
+  -- Already a member? Treat as a no-op success (idempotent).
+  select exists (
+    select 1 from public.group_members
+     where group_id = g.id and user_id = auth.uid()
+  ) into already;
+  if not already then
+    select count(*) into member_cnt
+      from public.group_members
+     where group_id = g.id;
+    if member_cnt >= 7 then
+      raise exception 'GROUP_FULL' using errcode = 'P0001';
+    end if;
+    insert into public.group_members (group_id, user_id)
+         values (g.id, auth.uid())
+    on conflict do nothing;
+  end if;
   return next g;
 end;
 $$;

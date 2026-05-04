@@ -3,16 +3,36 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../config/theme.dart';
+import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/weekly_results_viewmodel.dart';
+import '../widgets/celebrate.dart';
 import '../widgets/money_field.dart';
 import '../widgets/section.dart';
 
-class WeeklyResultsScreen extends StatelessWidget {
+class WeeklyResultsScreen extends StatefulWidget {
   const WeeklyResultsScreen({super.key});
+
+  @override
+  State<WeeklyResultsScreen> createState() => _WeeklyResultsScreenState();
+}
+
+class _WeeklyResultsScreenState extends State<WeeklyResultsScreen> {
+  bool _celebrated = false;
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<WeeklyResultsViewModel>();
+    if (!vm.loading && !_celebrated && vm.results.isNotEmpty) {
+      final userId = context.read<AuthViewModel>().userId;
+      if (userId != null && vm.results.first.winners.contains(userId)) {
+        _celebrated = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Celebrate.fire(context, big: true);
+        });
+      } else {
+        _celebrated = true;
+      }
+    }
     return CupertinoPageScaffold(
       navigationBar: const CupertinoNavigationBar(
         backgroundColor: AppTheme.background,
@@ -45,9 +65,10 @@ class WeeklyResultsScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Stake ${formatCents(r.perWinner)} • '
-                              '${r.winners.length} won (+${formatCents(r.perWinner)}) • '
-                              '${r.losers.length} lost (−${formatCents(r.perWinner)})',
+                              'Pool ${formatCents(r.poolAmount)} • '
+                              '${r.winners.length} won '
+                              '(+${formatCents(r.perWinner)} each) • '
+                              '${r.losers.length} missed',
                               style: AppTheme.caption,
                             ),
                           ],
